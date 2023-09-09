@@ -1,0 +1,23 @@
+(library
+  (name modular_int)
+  (modules modular_int)
+  (libraries
+    core))
+
+(library
+  (name cubie)
+  (modules cubie)
+  (libraries
+    core
+    modular_int)
+  (preprocess
+  (pps ppx_jane)))
+
+(library
+  (name move)
+  (modules move)
+  (libraries
+    cubie
+    modular_int)
+  (preprocess
+  (pps ppx_jane)))
