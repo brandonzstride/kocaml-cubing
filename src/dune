@@ -5,6 +5,14 @@
     core))
 
 (library
+  (name lookup_table)
+  (modules lookup_table)
+  (libraries
+    core)
+  (preprocess
+  (pps ppx_jane)))
+
+(library
   (name cubie)
   (modules cubie)
   (libraries
@@ -21,3 +29,27 @@
     modular_int)
   (preprocess
   (pps ppx_jane)))
+
+(library
+  (name perm)
+  (modules perm)
+  (libraries
+    move)
+  (preprocess
+  (pps ppx_jane)))
+
+(library
+  (name symmetry)
+  (modules symmetry)
+  (libraries
+    move
+    perm))
+
+(library
+  (name coordinate)
+  (modules coordinate)
+  (libraries
+    perm
+    move
+    symmetry
+    lookup_table))

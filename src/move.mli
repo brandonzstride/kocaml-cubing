@@ -10,16 +10,20 @@ module T : sig
   type t = Cubie.t -> Cubie.t
 end
 
-module Twist : sig
-  type t = U | R | F | D | B | L
+module Faceturn : sig
+  type t = U | R | F | D | B | L [@@deriving variants]
 
   val to_move : t -> T.t
 end
 
-module Fixed_moves : sig
-  type t = { twist: Twist.t ; count : Modular_int.Z4.t }
+(* I might consider making a `Non_identity_move` to track the 18 moves we use when searching *)
+
+module Fixed_move : sig
+  type t = { faceturn: Faceturn.t ; count : Modular_int.Z4.t }
   [@@deriving enumerate]
 
+  val n : int (* number of possible fixed moves *) (* I should consider removing the identity move *)
+  val to_rank : t -> int
   val to_move : t -> T.t
 end
 

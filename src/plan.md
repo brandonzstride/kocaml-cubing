@@ -47,6 +47,10 @@ Symmetries
   * I think just UD Twist and 8 Edge perm
   * I still neeed to think about how symmetries affect other coordinates like UD slice and if we need that.
   * Further, how do all these sym coords and stuff work with the moves that we're actually applying? Do moves need to be converted?
+* We need a ClassToRepresentativeArray for each equivalence class in the coordinates.
+  * This is built *before* calculating the sym coordinate tables
+    * We will compute all coordinates, group them by symmetry, order them by lowest in group, and save
+  * 
 
 Tables
 * These will be functions with tables under the hood

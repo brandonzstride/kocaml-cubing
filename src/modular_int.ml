@@ -1,13 +1,9 @@
 (* Define a cyclic group of some size *)
 
-module type Group = sig
-  val operation : [> `Multiplication | `Addition]
-  val n : int
-end
-
 module type S = sig
   type t 
   val ( * ) : t -> t -> t
+  val inverse : t -> t
   val int_equal : t -> int -> bool
   val int_compare : t -> int -> int
   val equal : t -> t -> bool
@@ -18,7 +14,10 @@ module type S = sig
   val all : t list
 end
 
-module Make (G : Group) : S = struct
+module Make (G : sig
+    val operation : [> `Multiplication | `Addition]
+    val n : int
+  end) : S = struct
   type t = int 
 
   let n = if G.n > 0 then G.n else failwith "invalid size for cyclic group"
@@ -32,7 +31,11 @@ module Make (G : Group) : S = struct
   let int_compare = compare
   let of_int x = x mod n
   let to_int x = x
-  let all = Core.List.init n ~f:Core.Fn.id
+  let all = Core.List.init n ~f:of_int
+
+  let inverse = match G.operation with
+  | `Addition -> fun x -> to_int @@ n - of_int x
+  | `Multiplication -> failwith "unimplemented"
 
 end
 

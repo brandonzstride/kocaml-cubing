@@ -8,6 +8,10 @@ let sgn ls ~compare =
   | 0 -> `Even
   | _ -> `Odd
 
+let rec sum_of_digits ~base = function
+  | 0 -> 0
+  | x -> (x mod base) + sum_of_digits ~base (x / base)
+
 (* The cosets will be all elements with that coordinate value. Since C0 = all with corner coordinate zero,
   then a single g in G gives a coset C0*g that has corner coordinate the same as g. So C0*g is all elements
   in G with corner coordinate the same as g.   

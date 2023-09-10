@@ -18,19 +18,30 @@ module Edge_facelet : sig
   type t = UR | UF | UL | UB | DR | DF | DL | DB | FR | FL | BL | BR [@@deriving enumerate, compare]
   val max : int
   val all_rev : t list
+  val all_ud_edges : t list
+  val all_ud_slice_edges : t list
 end
 
 module Corner : sig
   (* Corners will have orientation in Z3 *)
   (* We'll run into a problem where Z3 is the result of a functor but isn't a subtype of Modular_int.t *)
   type t = { c : Corner_facelet.t ; o : Modular_int.Z3.t }
+
+  val all : t list (* all corners with 0 orientation *)
+  val all_rev : t list
 end
 
 module Edge : sig
   (* Edges will have orientation in Z2 *)
   type t = { e : Edge_facelet.t ; o : Modular_int.Z2.t }
+
+  val all : t list (* all edges with 0 orientation *)
+  val all_rev : t list
+  val all_ud_edges : t list
+  val all_ud_slice_edges : t list
 end
 
 type t =
   | Corner of Corner.t
   | Edge of Edge.t
+  [@@deriving enumerate]
