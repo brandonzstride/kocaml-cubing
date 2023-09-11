@@ -30,10 +30,10 @@ module type S_sym =
     module Make (_ : Is_memoized) : Sym
   end
 
-
-(* I'd like to define a type for a functor. This might have to be a module type.*)
-(* i.e. I'd like all of the coordinates to be functors that take a module that describes 
-   where stuff is memoized or not, and the type after the functor is Raw*)
+(*
+  Coordinates have either been memoized (i.e. saved in a lookup table) or not.
+  We create the modules by telling them if they should load from memory.
+*)
 
 module Phase1 :
   sig

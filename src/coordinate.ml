@@ -1,27 +1,3 @@
-(* Because we'll probably create move tables, I'll want to make a setup
-   executable that runs all the coordinates and saves the move tables.
-   
-   Efficiency shouldn't matter *that* much here because these only need to be
-   calculated once.
-
-   For these lookup tables, should use Array behind the scenes because that
-   will be faster than a map. For a table of size 10^6, it's about 5 times
-   faster to do an array than a map, which is not that bad. I did this by
-   generating 10^6 random integers mapping to a random int in 0..10^6 and
-   queried for 1000 random ones. It appears 10 times faster with caching by
-   doing the same integer a ton of times, but when the query jumps around a lot
-   (because it's random), the map catches up (however it's still ~5 times slower).
-
-   I need to be able to invert coordinates.
-*)
-
-(* Note that "flipUDSlice" is the UDslice coordinate multiplied by edge orientation, I think *)
-(* By some of the code, it appears that UDSlice coord = flipUDslice / 2048, and
-   edge ori coord = flipUDslice mod 2048
-    Why isn't this explained anywhere?   
-  So say flipudslice = udclice*2048 + edgeori
-  This quite checks out because the edge orientations are in 2^11 = 2048.
-*)
 
 open Core
 
@@ -107,22 +83,25 @@ module Phase1 = struct
           *)
           let invert (x : t) : Perm.t =
             let open Cubie in
-            let rec go x' = function
-            | [] -> begin function
-              | Corner { c ; o = _ } -> Corner { c ; o = Modular_int.Z3.of_int (sum_of_digits x ~base:3) |> Modular_int.Z3.inverse} 
-              | e -> e 
-              end
+            let rec go x = function
+            | [] -> failwith "logically impossible"
             | hd :: tl -> begin function
-              | Corner { c ; o = _ } when Cubie.Corner_facelet.compare hd c = 0 -> Corner { c ; o = Modular_int.Z3.of_int x' }
-              | Corner _ as c -> (go (x' / 3) tl) c
-              | e -> e (* let edges be untouched *)
+              | Corner { c ; o = _ } when Cubie.Corner_facelet.compare hd c = 0 -> Corner {c ; o = Modular_int.Z3.of_int x }
+              | Corner _ as c -> (go (x / 3) tl) c
+              | e -> e (* let edges be untouched because they don't matter for corner orientation coordinate *)
               end
             in
-            Cubie.Corner_facelet.all_rev
-            |> List.tl_exn (* ignore least significant corner *)
-            |> go x
+            let final_orientation = (* deduce orientation of the final cubie *)
+              x
+              |> sum_of_digits ~base:3
+              |> Modular_int.Z3.of_int
+              |> Modular_int.Z3.inverse
+              |> Modular_int.Z3.to_int
+            in
+            go (x * 3 + final_orientation) Cubie.Corner_facelet.all_rev
             
           
+          (* Needs explanation for how this works *)
           let calculate (p : Perm.t) : t =
             let open Cubie.Corner in (* how come we need to open Cubie.Corner to access record field o? *)
             let rec go acc = function
@@ -181,6 +160,14 @@ module Phase1 = struct
         end
     end
     
+  (*
+    Flip_UD_slice is the UD_slice coordinate combined with edge orientation.
+    We can represent as a tuple or as a multiplied number.
+    Kociemba does this:
+      Flip_UD_slice = UD_slice * 2048 + Flip
+      => Flip = Flip_UD_slice mod 2048
+         UD_slice = Flip_UD_Slice / 2048
+  *)
   module Flip_UD_slice_raw : S_raw =
     struct
       module Make (M : Is_memoized) : Raw =

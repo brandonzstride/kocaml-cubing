@@ -1,4 +1,10 @@
 
+(*
+To check if a cube is well formed, just send perm to list of corners and edges,
+  and make sure both lists are odd or both lists are even.
+Must also check orientations. This can be done similarly to coordinates.   
+*)
+
 let sgn ls ~compare =
   let rec num_inversions = function
   | [] -> 0
@@ -7,30 +13,3 @@ let sgn ls ~compare =
   match num_inversions ls mod 2 with
   | 0 -> `Even
   | _ -> `Odd
-
-let rec sum_of_digits ~base = function
-  | 0 -> 0
-  | x -> (x mod base) + sum_of_digits ~base (x / base)
-
-(* The cosets will be all elements with that coordinate value. Since C0 = all with corner coordinate zero,
-  then a single g in G gives a coset C0*g that has corner coordinate the same as g. So C0*g is all elements
-  in G with corner coordinate the same as g.   
-*)
-
-(* Note that I can map a color set to a solved corner, so then I can just do "is replace by" easily to get
-   the permutation it's currently in. Then check that sgn is even.
-   
-   Also can easily check orientations check out by knowing which facelet is reference and checking distance.
-   I might have to assign some metric. 
-
-   e.g.
-
-   let distance cubie1 cubie2 =
-    let distance_corner c1 c2 =
-      match Cubie.Corner.reference_color c1, Cubie.Corner.reference_color c2 with
-      | actually this won't work because L face on UFL cubie is 2, but L face on ULB cubie is 1. Not too bad to hard code though. 
-    match cubie1, cubie2 with
-    | Corner c1, Corner c2 -> distance_corner c1 c2
-    match Cubie.reference_color cubie1, Cubie.reference_color cubie2 with
-    | 
-   *)

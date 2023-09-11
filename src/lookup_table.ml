@@ -12,23 +12,6 @@ module type Return_type =
     type t [@@deriving sexp]
   end
 
-(* module Make1D (Key : Key) (R : Return_type) :
-  sig
-    type t
-    val from_file : string -> t
-    val create : R.t list -> t
-    val lookup : t -> Key.t -> R.t
-  end
-
-module Make2D (Key1 : Key) (Key2 : Key) (R : Return_type) :
-  sig
-    type t
-    val from_file : string -> t
-    val create : R.t list list -> t
-    val lookup : t -> Key1.t -> Key2.t -> R.t
-  end *)
-
-
 module Make1D (Key : Key) (R : Return_type) =
   struct
     type t = R.t array [@@deriving sexp]
@@ -67,7 +50,6 @@ module Make2D (Key1 : Key) (Key2 : Key) (R : Return_type) =
       |> Sexp.save filename
 
     let create (ls : R.t list list) =
-      (* need to assert that total number of items is correct *)
       let total_len =
         ls
         |> List.map ~f:List.length

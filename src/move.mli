@@ -3,6 +3,8 @@
 We use the "is replaced by" representation for moves on the cubie level.
 
 So F(URF) = UFL means that what was in UFL will be moved to URF.
+
+A move will map every cubie on the cube to some other cubie with new orientation.
    
 *)
 
@@ -27,8 +29,4 @@ module Fixed_move : sig
   val to_move : t -> T.t
 end
 
-(* We only have so many moves, so I should consider that the move type is a variant *)
-(* I prefer that the domain includes orientation *)
-(* type t = Cubie.t -> Cubie.t *)
 type t = T.t
-(* should I define multiplication? It would be much easier to define multiplication on a list; harder on a function *)

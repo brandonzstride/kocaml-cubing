@@ -2,8 +2,6 @@ open Core
 
 type t = Move.t
 
-(* let ( let+ ) = List.Let_syntax.(>>|) *)
-
 let to_corners_list (p : t) : Cubie.Corner.t list =
   let open List.Let_syntax in
   let%map x = Cubie.Corner.all in

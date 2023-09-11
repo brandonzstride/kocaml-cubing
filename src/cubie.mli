@@ -24,7 +24,6 @@ end
 
 module Corner : sig
   (* Corners will have orientation in Z3 *)
-  (* We'll run into a problem where Z3 is the result of a functor but isn't a subtype of Modular_int.t *)
   type t = { c : Corner_facelet.t ; o : Modular_int.Z3.t }
 
   val all : t list (* all corners with 0 orientation *)
