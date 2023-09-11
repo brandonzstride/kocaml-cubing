@@ -7,7 +7,7 @@ val inverse : t -> t
 (*
   Symmetry S and perm P => S * P * S^-1   
 *)
-val conjugate : t -> Perm.t -> Perm.t 
+val on_perm : t -> Perm.t -> Perm.t 
 
 (*
   How the symmetry S acts on a move m by S * m * S^-1

@@ -118,7 +118,7 @@ module Phase1 = struct
           let perform_symmetry : t -> Symmetry.t -> t =
             match symmetry_table with
             | Some table -> fun x s -> Twist_symmetry_table.lookup table x s
-            | None -> fun x s -> invert x |> Symmetry.conjugate s |> calculate
+            | None -> fun x s -> invert x |> Symmetry.on_perm s |> calculate
         end
     end
 
@@ -137,7 +137,8 @@ module Phase1 = struct
           let perform_fixed_move (x : t) (m : Move.Fixed_move.t) : t =
             failwith "unimplemented"
 
-          let perform_symmetry = failwith "unimplemented"
+          let perform_symmetry (x : t) (s : Symmetry.t) : t =
+            failwith "unimplemented"
         end
     end
 
@@ -156,7 +157,8 @@ module Phase1 = struct
           let perform_fixed_move (x : t) (m : Move.Fixed_move.t) : t =
             failwith "unimplemented"
 
-          let perform_symmetry = failwith "unimplemented"
+          let perform_symmetry (x : t) (s : Symmetry.t) : t =
+            failwith "unimplemented"
         end
     end
     
@@ -183,7 +185,8 @@ module Phase1 = struct
           let perform_fixed_move (x : t) (m : Move.Fixed_move.t) : t =
             failwith "unimplemented"
 
-          let perform_symmetry = failwith "unimplemented"
+          let perform_symmetry (x : t) (s : Symmetry.t) : t =
+            failwith "unimplemented"
         end
     end
 
@@ -202,7 +205,8 @@ module Phase1 = struct
           let perform_fixed_move (x : t) (m : Move.Fixed_move.t) : t =
             failwith "unimplemented"
 
-          let perform_symmetry = failwith "unimplemented"
+          let perform_symmetry (x : t) (s : Symmetry.t) : t =
+            failwith "unimplemented"
         end
     end
   
@@ -302,7 +306,8 @@ module Phase2 = struct
           let perform_fixed_move (x : t) (m : Move.Fixed_move.t) : t =
             failwith "unimplemented"
 
-          let perform_symmetry = failwith "unimplemented"
+          let perform_symmetry (x : t) (s : Symmetry.t) : t =
+            failwith "unimplemented"
         end
     end
   
@@ -322,7 +327,8 @@ module Phase2 = struct
           let perform_fixed_move (x : t) (m : Move.Fixed_move.t) : t =
             failwith "unimplemented"
 
-          let perform_symmetry = failwith "unimplemented"
+          let perform_symmetry (x : t) (s : Symmetry.t) : t =
+            failwith "unimplemented"
         end
     end
 
@@ -341,7 +347,8 @@ module Phase2 = struct
           let perform_fixed_move (x : t) (m : Move.Fixed_move.t) : t =
             failwith "unimplemented"
 
-          let perform_symmetry = failwith "unimplemented"
+          let perform_symmetry (x : t) (s : Symmetry.t) : t =
+            failwith "unimplemented"
         end
     end
 
@@ -360,7 +367,8 @@ module Phase2 = struct
           let perform_fixed_move (x : t) (m : Move.Fixed_move.t) : t =
             failwith "unimplemented"
 
-          let perform_symmetry = failwith "unimplemented"
+          let perform_symmetry (x : t) (s : Symmetry.t) : t =
+            failwith "unimplemented"
         end
     end
 

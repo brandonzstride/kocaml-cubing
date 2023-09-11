@@ -6,13 +6,17 @@
 *)
 type t = int (* is index 0..15 in symmetry list *)
 
-let inverse = failwith "unimplemented"
+let inverse (s : t) : t =
+  failwith "unimplemented"
 
-let conjugate = failwith "unimplemented"
+let on_perm (s : t) (p : Perm.t) : Perm.t =
+  failwith "unimplemented"
 
-let mult = failwith "unimplemented"
+let mult (s1 : t) (s2 : t) : t =
+  failwith "unimplemented"
 
-let on_move = failwith "unimplemented"
+let on_move (s : t) (m : Move.Fixed_move.t) : Move.Fixed_move.t =
+  failwith "unimplemented"
 
 (*
   While there are 48 symmetries, only 16 preserve UD symmetry, which is necessary for the solving method.

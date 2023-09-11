@@ -1,7 +1,10 @@
+open Core
+
 (* Define a cyclic group of some size *)
 
 module type S = sig
   type t 
+  val ( + ) : t -> t -> t
   val ( * ) : t -> t -> t
   val inverse : t -> t
   val int_equal : t -> int -> bool
@@ -10,52 +13,48 @@ module type S = sig
   val compare : t -> t -> int
   val of_int : int -> t
   val to_int : t -> int
+  val inc : t -> t
+  val dec : t -> t
   val n : int
   val all : t list
 end
 
 module Make (G : sig
-    val operation : [> `Multiplication | `Addition]
     val n : int
   end) : S = struct
   type t = int 
 
   let n = if G.n > 0 then G.n else failwith "invalid size for cyclic group"
 
-  let op = match G.operation with `Multiplication -> ( * ) | `Addition -> ( + )
-
-  let ( * ) a b = (op a b) mod n
-  let equal = Core.Int.equal
-  let compare = Core.Int.compare
+  let to_int x = x
+  let rec of_int x = if x < 0 then Int.abs x |> of_int |> inverse else x mod n
+  and inverse x = of_int (n - x)
+  let ( + ) a b = (a + b) |> of_int 
+  let ( * ) a b = (a * b) |> of_int
+  let equal = Int.equal
+  let compare = Int.compare
   let int_equal = equal
   let int_compare = compare
-  let of_int x = x mod n
-  let to_int x = x
-  let all = Core.List.init n ~f:of_int
-
-  let inverse = match G.operation with
-  | `Addition -> fun x -> to_int @@ n - of_int x
-  | `Multiplication -> failwith "unimplemented"
+  let all = List.init n ~f:of_int
+  let inc x = Int.(+) 1 x |> of_int
+  let dec x = Int.(+) (-1) x |> of_int
 
 end
 
 module Z2 = Make (
   struct
-    let operation = `Addition
     let n = 2
   end
 )
 
 module Z3 = Make (
   struct
-    let operation = `Addition
     let n = 3 
   end
 )
 
 module Z4 = Make (
   struct
-    let operation = `Addition
     let n = 4
   end
 )
