@@ -36,7 +36,7 @@ module Edge : sig
   val all_ud_slice_edges : t list
 end
 
-(* Compare has all corners less than edges, and ignores orientations. *)
+(* Compare has all corners less than edges. *)
 type t =
   | Corner of Corner.t
   | Edge of Edge.t

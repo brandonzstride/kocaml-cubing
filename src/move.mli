@@ -22,13 +22,13 @@ module Faceturn : sig
   val to_move : t -> T.t
 end
 
-(* This is the signature for single face turns. *)
+(* This is the signature for multiple turns of one face *)
 (* We do not allow count to be zero in `all` or in `to_rank` *)
 module Fixed_move : 
   sig
     type t = { faceturn : Faceturn.t ; count : Modular_int.Z4.t }
     val all : t list
-    val n : int (* number of possible moves -- length of `n` -- number of non-identity moves *)
+    val n : int (* number of possible moves -- length of `all` -- number of non-identity moves *)
     val to_rank : t -> int (* not defined on count = 0 *)
     val to_move : t -> T.t
   end

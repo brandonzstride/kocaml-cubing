@@ -330,6 +330,8 @@ module Phase1 =
 module Phase2 =
   struct
 
+    (* some of my utop tests show that perm coords are not working. *)
+
     (*
       Functor for a permutation coordinate on some cubies.   
     *)
