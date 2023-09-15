@@ -143,20 +143,21 @@ module type Memoization =
     val save_location : string (* absolute string filepath *)
   end
 
+(* I think I might not enforce the type to be the same,
+   but rather make all users of this a functor where I 
+   have to pass in the coordinate modules *)
+
 module Memoize_raw (R : Raw) (_ : Memoization) : Raw with type t := R.t
 
 module Memoize_sym (S : Sym) (_ : Memoization) : Sym with type t := S.t
 
-(* All coordinates will be memoized. *)
+(* All coordinates will be memoized eventually. *)
 
-(*
-  Issue: if the types are different on raw and sym coordinates, so I might need
-  to make it known which coordinates are Sym and which are Raw.
-  i.e. this signature should show which are 
-*)
 module Phase1 :
   sig
     module Twist : Raw
+    module Flip : Raw (* exposed only for testing *)
+    module UD_slice : Raw (* exposed only for testing *)
     module Flip_UD_slice : Sym
   end
 

@@ -15,6 +15,8 @@ end
 module Edge_facelet : sig
   (* Facelets are written starting with reference facelet. *)
   type t = UR | UF | UL | UB | DR | DF | DL | DB | FR | FL | BL | BR [@@deriving enumerate, compare]
+  val is_ud_slice : t -> bool
+  val is_ud_edge : t -> bool
   val max : int
   val all_ud_edges : t list
   val all_ud_slice_edges : t list
@@ -31,6 +33,8 @@ module Edge : sig
   (* Edges will have orientation in Z2 *)
   type t = { e : Edge_facelet.t ; o : Modular_int.Z2.t } [@@deriving compare]
 
+  val is_ud_slice : t -> bool
+  val is_ud_edge : t -> bool
   val all : t list (* all edges with 0 orientation *)
   val all_ud_edges : t list
   val all_ud_slice_edges : t list
@@ -41,3 +45,6 @@ type t =
   | Corner of Corner.t
   | Edge of Edge.t
   [@@deriving enumerate, compare]
+
+val is_ud_slice : t -> bool
+val is_ud_edge : t -> bool

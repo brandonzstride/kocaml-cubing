@@ -272,11 +272,58 @@ module Phase1 =
             module I = Int_coord (struct let n = ncr 12 4 end)
             include I
           
+            (*
+              Now I have to invert. Start at the largest edges.
+              If it's filled, then at most the coordinate is
+              nCr 10 2 + nCr 9 2 + ... + nCr 3 2 = 164
+              and if it's empty, then at least the coordinate is
+              nCr 11 3 = 165
+              So at any edge i with 3-k edges found so far, we just
+              check if the coordinate is at least nCr i k, and if
+              it is, then consider it empty and decrease i.
+              Otherwise, fill with some ud_slice edge, decrease k, and
+              subtract off nCr i k from the coordinate before continuing.
+            *)
             let invert (x : t) : Perm.t =
-              failwith "unimplemented"
+              let open Cubie in
+              let is_filled x i k = x < ncr i k in
+              let ud_slice = List.map Edge.all_ud_slice_edges ~f:(fun e -> Edge e) in
+              let ud_edge  = List.map Edge.all_ud_edges ~f:(fun e -> Edge e) in
+              let rec go x i k = function
+              | _ when k < 0 -> fun x -> x (* all ud slice found, just leave the rest in place *)
+              | [] -> fun x -> x (* logically impossible *)
+              | hd :: tl when is_filled x i k -> begin function
+                | Edge e when Edge.compare hd e = 0 -> List.nth_exn ud_slice k
+                | Corner _ as c -> c
+                | e -> e |> go x (i - 1) (k - 1) tl
+                end
+              | hd :: tl -> begin function (* this space is not filled with ud_slice edge *) 
+                | Edge e when Edge.compare hd e = 0 -> List.nth_exn ud_edge (i - k - 1) (* fill with non-ud-slice edge *)
+                | Corner _ as c -> c
+                | e -> e |> go (x - ncr i k) (i - 1) k tl
+                end
+              in
+              go x 11 3 (List.rev Edge.all)
+
             
+            (*
+              Label the spots 0-11. Four are filled with UD slice edges.
+              An unfilled slot i takes on value nCr i k where
+              k = 3 - #filled spots to right of i.
+              Ignore if k is negative.
+              Sum these to get the coordinate.
+            *)
             let calculate (p : Perm.t) : t =
-              failwith "unimplemented"
+              let is_filled e = Cubie.Edge e |> p |> Cubie.is_ud_slice in
+              let rec go i k = function
+              | _ when k < 0 -> 0
+              | [] -> 0
+              | hd :: tl when is_filled hd -> go (i - 1) (k - 1) tl
+              | hd :: tl -> ncr i k + go (i - 1) k tl
+              in
+              Cubie.Edge.all
+              |> List.rev
+              |> go 11 3
           end (* end T *)
 
         include T

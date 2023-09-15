@@ -1,3 +1,9 @@
+(*
+  All `failwith` calls in the file should be logically impossible
+  if the code is correct.   
+*)
+
+
 open Core
 
 [@@@ocaml.warning "-27"] (* unused variable declarations *)
@@ -126,13 +132,19 @@ module S : S =
       )
 
     let mult (s1 : t) (s2 : t) : t =
-      (* Symmetries don't commute, so I'll have to covert to moves and compare moves *)
+      (* Symmetries don't commute, so I'll have to convert to moves and compare moves *)
       let m = Move.(to_move s1 * to_move s2) in
-      List.find_exn all ~f:(fun a -> Move.equal (to_move a) m)
+      List.find all ~f:(fun a -> Move.equal (to_move a) m)
+      |> function
+        | Some s -> s
+        | None -> failwith "could not find equivalent symmetry for multiplication"
 
     let inverse (s : t) : t =
       let m = to_move s in
-      List.find_exn all ~f:(fun a -> Move.(equal (m * to_move a) Fn.id))
+      List.find all ~f:(fun a -> Move.(equal (m * to_move a) Fn.id))
+      |> function
+        | Some s -> s
+        | None -> failwith "could not find inverse symmetry"
 
     let on_perm (s : t) (p : Perm.t) : Perm.t =
       Move.(to_move s * p * to_move (inverse s))
@@ -140,7 +152,10 @@ module S : S =
     let on_move (s : t) (m : Move.Fixed_move.t) : Move.Fixed_move.t = 
       let open Move in
       let m' = to_move s * Fixed_move.to_move m * to_move (inverse s) in
-      List.find_exn Fixed_move.all ~f:(fun a -> equal (Fixed_move.to_move a) m')
+      List.find Fixed_move.all ~f:(fun a -> equal (Fixed_move.to_move a) m')
+      |> function
+        | Some m -> m
+        | None -> failwith "could not find equivalent move under symmetry"
 
   end
 
