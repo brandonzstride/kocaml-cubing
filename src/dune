@@ -45,11 +45,19 @@
     move
     perm))
 
+; (library
+;   (name coordinate)
+;   (modules coordinate)
+;   (libraries
+;     perm
+;     move
+;     symmetry
+;     lookup_table))
+
 (library
-  (name coordinate)
-  (modules coordinate)
-  (libraries
-    perm
-    move
-    symmetry
-    lookup_table))
+ (name coordinate)
+ (modules coordinate)
+ (libraries
+  perm
+  move
+  symmetry))

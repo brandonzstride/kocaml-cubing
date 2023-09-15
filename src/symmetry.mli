@@ -16,3 +16,5 @@ val on_move : t -> Move.Fixed_move.t -> Move.Fixed_move.t
 
 val to_rank : t -> int
 val n : int 
+val next : t -> t option
+val zero : t

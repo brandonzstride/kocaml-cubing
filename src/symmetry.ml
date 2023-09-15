@@ -26,3 +26,7 @@ let n = 16
   Since we store as an integer, there's really nothing to convert to a rank   
 *)
 let to_rank = fun x -> x
+
+let next x = if x = n - 1 then None else Some (x + 1)
+
+let zero = 0

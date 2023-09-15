@@ -14,6 +14,8 @@ end
 
 type t = T.t
 
+val ( * ) : t -> t -> t
+
 module Faceturn : sig
   type t = U | R | F | D | B | L [@@deriving variants]
 

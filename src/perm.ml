@@ -2,6 +2,11 @@ open Core
 
 type t = Move.t
 
+let identity = Fn.id
+
+let perform_move (p : t) (m : Move.t) =
+  Move.(m * p) (* Does p first and then m *)
+
 let to_corners_list (p : t) : Cubie.Corner.t list =
   let open List.Let_syntax in
   let%map x = Cubie.Corner.all in

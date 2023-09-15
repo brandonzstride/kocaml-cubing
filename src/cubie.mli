@@ -10,14 +10,12 @@ module Corner_facelet : sig
   *)
   type t = URF | UFL | ULB | UBR | DFR | DLF | DBL | DRB [@@deriving enumerate, compare]
   val max : int 
-  val all_rev : t list
 end
 
 module Edge_facelet : sig
   (* Facelets are written starting with reference facelet. *)
   type t = UR | UF | UL | UB | DR | DF | DL | DB | FR | FL | BL | BR [@@deriving enumerate, compare]
   val max : int
-  val all_rev : t list
   val all_ud_edges : t list
   val all_ud_slice_edges : t list
 end
@@ -27,7 +25,6 @@ module Corner : sig
   type t = { c : Corner_facelet.t ; o : Modular_int.Z3.t }
 
   val all : t list (* all corners with 0 orientation *)
-  val all_rev : t list
 end
 
 module Edge : sig
@@ -35,11 +32,11 @@ module Edge : sig
   type t = { e : Edge_facelet.t ; o : Modular_int.Z2.t }
 
   val all : t list (* all edges with 0 orientation *)
-  val all_rev : t list
   val all_ud_edges : t list
   val all_ud_slice_edges : t list
 end
 
+(* Compare has all corners less than edges, and ignores orientations. *)
 type t =
   | Corner of Corner.t
   | Edge of Edge.t
