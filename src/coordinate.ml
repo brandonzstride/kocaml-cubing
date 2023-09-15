@@ -375,7 +375,7 @@ module Phase2 =
               | [] | [_] -> acc (* ignore least significant cubie *)
               | hd :: tl -> go (acc * i + count_inversions hd tl) (i - 1) tl
               in
-              go 0 (k - 1) all_rev
+              go 0 k all_rev
 
             (*
               See the description above of how the coordinate is calculated. Here is
