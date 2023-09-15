@@ -17,14 +17,14 @@ end
 
 module Corner = struct
   (* Corners will have orientation in Z3 *)
-  type t = { c : Corner_facelet.t ; o : Modular_int.Z3.t }
+  type t = { c : Corner_facelet.t ; o : Modular_int.Z3.t } [@@deriving compare]
 
   let all = List.map Corner_facelet.all ~f:(fun c -> { c ; o = Modular_int.Z3.of_int 0 })
 end
 
 module Edge = struct
   (* Edges will have orientation in Z2 *)
-  type t = { e : Edge_facelet.t ; o : Modular_int.Z2.t }
+  type t = { e : Edge_facelet.t ; o : Modular_int.Z2.t } [@@deriving compare]
 
   let zero_ori = fun e -> { e ; o = Modular_int.Z2.of_int 0 }
 
@@ -36,4 +36,4 @@ end
 type t =
   | Corner of Corner.t
   | Edge of Edge.t
-  [@@deriving enumerate]
+  [@@deriving enumerate, compare]

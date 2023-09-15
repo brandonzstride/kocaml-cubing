@@ -22,14 +22,14 @@ end
 
 module Corner : sig
   (* Corners will have orientation in Z3 *)
-  type t = { c : Corner_facelet.t ; o : Modular_int.Z3.t }
+  type t = { c : Corner_facelet.t ; o : Modular_int.Z3.t } [@@deriving compare]
 
   val all : t list (* all corners with 0 orientation *)
 end
 
 module Edge : sig
   (* Edges will have orientation in Z2 *)
-  type t = { e : Edge_facelet.t ; o : Modular_int.Z2.t }
+  type t = { e : Edge_facelet.t ; o : Modular_int.Z2.t } [@@deriving compare]
 
   val all : t list (* all edges with 0 orientation *)
   val all_ud_edges : t list
@@ -40,4 +40,4 @@ end
 type t =
   | Corner of Corner.t
   | Edge of Edge.t
-  [@@deriving enumerate]
+  [@@deriving enumerate, compare]

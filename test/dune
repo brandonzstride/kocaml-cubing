@@ -3,4 +3,7 @@
  (libraries 
   core
   ounit2
-  coordinate))
+  coordinate
+  move
+  perm
+  cubie))

@@ -4,8 +4,14 @@ type t = Move.t
 
 let identity = Fn.id
 
+let is_identity (p : t) : bool =
+  List.for_all Cubie.all ~f:(fun c -> Cubie.compare c (p c) = 0)
+
 let perform_move (p : t) (m : Move.t) =
   Move.(m * p) (* Does p first and then m *)
+
+let of_move_list (ls : Move.t list) : t =
+  List.fold ls ~init:identity ~f:perform_move
 
 let to_corners_list (p : t) : Cubie.Corner.t list =
   let open List.Let_syntax in
