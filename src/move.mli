@@ -14,6 +14,9 @@ end
 
 type t = T.t
 
+(* Since domain is finite and behavior of moves are limited, we can compare *)
+val equal : t -> t -> bool
+
 val ( * ) : t -> t -> t
 
 module Faceturn : sig

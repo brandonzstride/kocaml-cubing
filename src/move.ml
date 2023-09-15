@@ -6,6 +6,13 @@ end
 
 include T
 
+let equal (m1 : t) (m2 : t) : bool =
+  let rec aux = function
+  | [] -> true
+  | hd :: tl -> Cubie.compare (m1 hd) (m2 hd) = 0 && aux tl
+  in
+  aux Cubie.all
+
 
 (* Compose the two moves. But since we use "is replaced by", if we want to first
    do the move b and then do a, we must first see what a's cubies are replaced by,

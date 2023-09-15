@@ -13,7 +13,7 @@ module type Raw =
     (* calculate the resulting coordinate after applying one of the regular, fixed moves *)
     val perform_fixed_move : t -> Move.Fixed_move.t -> t
     (* Cube P with coordinate x and symmetry S. Gets coordinate of S * P * S^-1 *)
-    val perform_symmetry : t -> Symmetry.t -> t
+    val perform_symmetry : t -> Symmetry.S.t -> t
     (* Find the next largest coordinate. This is useful for creating lookup tables. *)
     val next : t -> t option
     (* Rank the coordinates as integers *)
@@ -30,7 +30,7 @@ module type Sym =
     val invert : t -> Perm.t
     val calculate : Perm.t -> t
     val perform_fixed_move : t -> Move.Fixed_move.t -> t
-    val perform_symmetry : t -> Symmetry.t -> t
+    val perform_symmetry : t -> Symmetry.S.t -> t
     (* Get the representative of the next class, not just the next coordinate *)
     val next_representative : t -> t option
     (* Gets the rank of the eq class of the coordinate *)
@@ -39,7 +39,7 @@ module type Sym =
     val to_eq_class_rank : t -> int
     (* Gets which symmetry converts the coordinate to the representative *)
     (* i.e. if the perm is P, then it is converted to representative by S * P * S^-1 *)
-    val get_symmetry : t -> Symmetry.t
+    val get_symmetry : t -> Symmetry.S.t
     (* Gets the first representative *)
     val zero_representative : t
     (* Number of equivalence classes i.e. number of representatives *)
@@ -57,7 +57,7 @@ module Sym_of_raw (R : Raw) : Sym =
     let perform_symmetry = R.perform_symmetry
     let next_representative = R.next
     let to_eq_class_rank = R.to_rank
-    let get_symmetry _ = Symmetry.zero
+    let get_symmetry _ = Symmetry.S.zero
     let zero_representative = R.zero
     let n = R.n
   end
@@ -120,10 +120,10 @@ module Raw_of_calculate_invert (R : Raw_base) : Raw with type t := R.t =
       let p = invert x in
       Perm.perform_move p m |> calculate
       
-    let perform_symmetry (x : t) (s : Symmetry.t) : t = 
+    let perform_symmetry (x : t) (s : Symmetry.S.t) : t = 
       x
       |> invert
-      |> Symmetry.on_perm s
+      |> Symmetry.S.on_perm s
       |> calculate
   end
 

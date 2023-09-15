@@ -21,7 +21,7 @@ let test_move_sequence _ =
   let p = [(B, 2); (D, 3); (B, 1); (L, 2); (B, 2); (D, 1); (U, 3); (F, 3); (B, 2);
            (U, 2); (D, 2); (R, 2); (B, 1); (R, 3); (L, 1); (F, 3); (R, 3); (B, 1);
            (D, 3); (F, 2); (L, 1); (R, 1); (F, 1); (U, 2); (B, 2)]
-    |> List.map ~f:(fun (a,b) -> { faceturn = a ; count = Modular_int.Z4.of_int b} |> Cubie.Fixed_move.to_move)
+    |> List.map ~f:(fun (a,b) -> { faceturn = a ; count = Modular_int.Z4.of_int b} |> Move.Fixed_move.to_move)
     |> Perm.of_move_list
   in
   assert_equal (Perm.to_corners_list p)        (corner_list [(URF, 2); (DLF, 0); (DFR, 1); (UBR, 0); (ULB, 1); (DBL, 1); (UFL, 0); (DRB, 1)]);
@@ -38,6 +38,7 @@ let test_twist _ =
 
 let cube_tests = "cube tests" >: test_list [
   "move sequence" >:: test_move_sequence;
+  "twist" >:: test_twist;
 ]
 
 let series = "series" >::: [

@@ -43,7 +43,10 @@
   (modules symmetry)
   (libraries
     move
-    perm))
+    perm
+    cubie)
+  (preprocess
+    (pps ppx_jane)))
 
 ; (library
 ;   (name coordinate)
