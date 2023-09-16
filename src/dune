@@ -48,19 +48,13 @@
   (preprocess
     (pps ppx_jane)))
 
-; (library
-;   (name coordinate)
-;   (modules coordinate)
-;   (libraries
-;     perm
-;     move
-;     symmetry
-;     lookup_table))
-
 (library
- (name coordinate)
- (modules coordinate)
- (libraries
-  perm
-  move
-  symmetry))
+  (name coordinate)
+  (modules coordinate)
+  (libraries
+    perm
+    move
+    symmetry
+    lookup_table)
+  (preprocess
+    (pps ppx_jane)))

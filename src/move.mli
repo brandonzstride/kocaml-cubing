@@ -30,7 +30,7 @@ end
 module Fixed_move : 
   sig
     type t = { faceturn : Faceturn.t ; count : Modular_int.Z4.t }
-    val all : t list
+    val all : t list (* all non-identity moves *)
     val n : int (* number of possible moves -- length of `all` -- number of non-identity moves *)
     val to_rank : t -> int (* not defined on count = 0 *)
     val to_move : t -> T.t

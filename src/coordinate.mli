@@ -13,6 +13,9 @@ module type Raw =
     val next : t -> t option
     (* Rank the coordinates as integers *)
     val to_rank : t -> int
+    (* Get the coordinate of the given rank.
+       Ideally this isn't used much, and `next` is used instead. *)
+    val of_rank : int -> t
     (* The smallest coordinate *)
     val zero : t
     (* How many coordinates there are *)
@@ -134,26 +137,25 @@ module Sym_of_raw (_ : Raw) : Sym
 
   When a memoized module is created, it is told whether it needs to calculate
   the lookup table or if the table already exists. This is done via the
-  Memoization module type.
+  Memoization module type. The lookup table will only be calculated if
+  `Memoization.is_already_saved` is `false`.
 *)
 
 module type Memoization =
   sig
     val is_already_saved : bool
-    val save_location : string (* absolute string filepath *)
+    val move_save_location : string (* absolute string filepath *)
+    val sym_save_location : string (* absolute string filepath *) 
   end
 
-(* I think I might not enforce the type to be the same,
-   but rather make all users of this a functor where I 
-   have to pass in the coordinate modules *)
+(* Note that we don't require the type to be the same as the input module *)
+module Memoize_raw (_ : Raw) (_ : Memoization) : Raw
 
-module Memoize_raw (R : Raw) (_ : Memoization) : Raw with type t := R.t
-
-module Memoize_sym (S : Sym) (_ : Memoization) : Sym with type t := S.t
+module Memoize_sym (_ : Sym) (_ : Memoization) : Sym
 
 (* All coordinates will be memoized eventually. *)
 
-module Phase1 :
+module Phase1 : 
   sig
     module Twist : Raw
     module Flip : Raw (* exposed only for testing *)
@@ -164,6 +166,7 @@ module Phase1 :
 module Phase2 :
   sig
     module Edge_perm : Raw
+    module Corner_perm_raw : Raw
     module Corner_perm : Sym
     module UD_slice_perm : Raw
   end

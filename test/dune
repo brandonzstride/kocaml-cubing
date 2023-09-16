@@ -6,4 +6,5 @@
   coordinate
   move
   perm
-  cubie))
+  cubie
+  core_unix))

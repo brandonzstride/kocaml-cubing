@@ -103,7 +103,7 @@ module Fixed_move =
       Int.(Faceturn.Variants.to_rank x.faceturn * 3 + Modular_int.Z4.to_int x.count)
       
     (* all defined by enumerate *)
-    let all = all |> List.filter ~f:(fun x -> Modular_int.Z4.compare x.count (Modular_int.Z4.of_int 0) = 0)
+    let all = all |> List.filter ~f:(fun x -> Modular_int.Z4.compare x.count (Modular_int.Z4.of_int 0) <> 0)
 
     let n = List.length all
     

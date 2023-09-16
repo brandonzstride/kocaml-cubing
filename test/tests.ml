@@ -28,17 +28,55 @@ let test_move_sequence _ =
   assert_equal (Perm.to_ud_slice_edges_list p) (edge_list   [(UR, 0); (BL, 1); (BR, 1); (UF, 1)]);
   assert_equal (Perm.to_ud_edges_list p)       (edge_list   [(UL, 1); (DL, 0); (UB, 1); (DF, 1); (FL, 0); (DR, 0); (DB, 1); (FR, 1)])
 
-(*
-  I will try a few different permutations and manually calculate the twist coordinate.
-  Then make sure that invert cancels with calculate. If I check that calculate is the
-  right inverse of invert, do I need to check the other way?
-*)
-let test_twist _ =
-  ()
+(* Iterates through all possible coordinates and asserts that each is uniquely calculated *)
+let test_coordinate_inverses (module Raw_coord : Coordinate.Raw) =
+  let verify_inverse x =
+    assert_equal (Raw_coord.to_rank x) (x |> Raw_coord.invert |> Raw_coord.calculate |> Raw_coord.to_rank)
+  in
+  let rec loop = function
+  | None -> ()
+  | Some x -> verify_inverse x; loop @@ Raw_coord.next x
+  in
+  loop (Some Raw_coord.zero)
+
+let test_perm_coord_inverses _ =
+  let open Coordinate.Phase2 in
+  test_coordinate_inverses (module Edge_perm);
+  test_coordinate_inverses (module Corner_perm_raw);
+  test_coordinate_inverses (module UD_slice_perm)
+
+let test_ori_coord_inverses _ =
+  let open Coordinate.Phase1 in
+  test_coordinate_inverses (module Twist);
+  test_coordinate_inverses (module Flip)
+  
+(* this is for saving memoized results in the test folder *)
+module M (F : sig val filename : string end) : Coordinate.Memoization =
+  struct
+    let is_already_saved = false
+    let move_save_location = "./lookup_tables/coordinates/move/" ^ F.filename
+    let sym_save_location = "./lookup_tables/coordinates/sym/" ^ F.filename
+  end
+
+module M_twist  = M (struct let filename = "twist_test.sexp" end)
+module M_edge_perm = M (struct let filename = "edge_perm_test.sexp" end)
+
+let test_memoized_coordinates_inverses _ =
+  let open Coordinate.Phase1 in
+  let open Coordinate.Phase2 in
+  test_coordinate_inverses (module Coordinate.Memoize_raw (Twist) (M_twist))
+  (* this is commented out because it takes a long time. I should see about speeding it up *) 
+  (* test_coordinate_inverses (module Coordinate.Memoize_raw (Edge_perm) (M_edge_perm)) *)
+;; 
+
+print_endline (Core_unix.getcwd ())
+;;
 
 let cube_tests = "cube tests" >: test_list [
   "move sequence" >:: test_move_sequence;
-  "twist" >:: test_twist;
+  "perm coord inverses" >:: test_perm_coord_inverses;
+  "ori coord inverses" >:: test_ori_coord_inverses;
+  "memoized coord inverses" >:: test_memoized_coordinates_inverses;
 ]
 
 let series = "series" >::: [

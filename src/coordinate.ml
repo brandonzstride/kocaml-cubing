@@ -18,6 +18,9 @@ module type Raw =
     val next : t -> t option
     (* Rank the coordinates as integers *)
     val to_rank : t -> int
+    (* Get the coordinate of the given rank.
+       Ideally this isn't used much, and `next` is used instead. *)
+    val of_rank : int -> t
     (* The smallest coordinate *)
     val zero : t
     (* How many coordinates there are *)
@@ -65,18 +68,10 @@ module Sym_of_raw (R : Raw) : Sym =
 module type Memoization =
   sig
     val is_already_saved : bool
-    val save_location : string (* absolute string filepath *)
+    val move_save_location : string (* absolute string filepath *)
+    val sym_save_location : string (* absolute string filepath *) 
   end
 
-(* Placeholder definitions *)
-module Memoize_raw (R : Raw) (_ : Memoization) =
-  struct
-    include R
-  end
-module Memoize_sym (S : Sym) (_ : Memoization) =
-  struct
-    include S
-  end
 
 let rec sum_of_digits ~base = function
   | 0 -> 0
@@ -92,17 +87,82 @@ let ncr n r =
 
 module Int_coord (N : sig val n : int end) =
   struct
-    type t = int
+    type t = int [@@deriving sexp]
     let to_rank = Fn.id
+    let of_rank = Fn.id
     let n = N.n
     let zero = 0
     let next x = if x = n - 1 then None else Some (x + 1)
+  end
+
+module Memoize_raw (R : Raw) (M : Memoization) =
+  struct
+    (*
+      The type in a memoized coordinate will be int. This integer
+      is exactly the rank of the corresponding coordinate in the
+      non-memoized version.
+    *)
+    module I = Int_coord (struct let n = R.n end)
+    include I
+
+    (* Since I.t has sexp, we can say return type is I *)
+    module Move_table = Lookup_table.Make2D (I) (Move.Fixed_move) (I)
+    module Symmetry_table = Lookup_table.Make2D (I) (Symmetry.S) (I)
+
+    let move_table =
+      if M.is_already_saved then Move_table.from_file M.move_save_location else
+      let coord_move_list =
+        let rec loop = function
+        | None -> []
+        | Some (x : R.t) ->
+          List.map Move.Fixed_move.all ~f:(fun m -> R.perform_fixed_move x m |> R.to_rank) :: loop (R.next x)
+        in
+        loop (Some R.zero)
+      in
+      let tbl = Move_table.create coord_move_list in
+      (* Move_table.to_file tbl M.move_save_location; *)
+      tbl
+
+    let sym_table =
+      if M.is_already_saved then Symmetry_table.from_file M.sym_save_location else
+      let sym_all = 
+        let rec loop = function
+        | None -> []
+        | Some (s : Symmetry.S.t) -> s :: loop (Symmetry.S.next s)
+        in
+        loop (Some Symmetry.S.zero)
+      in
+      let sym_coord_list =
+        let rec loop = function
+        | None -> []
+        | Some (x : R.t) ->
+          List.map sym_all ~f:(fun s -> R.perform_symmetry x s |> R.to_rank) :: loop (R.next x)
+        in
+        loop (Some R.zero)
+      in
+      let tbl = Symmetry_table.create sym_coord_list in
+      (* Symmetry_table.to_file tbl M.sym_save_location; *)
+      tbl
+
+    (* these don't get called much, and memoizing would take too much space *)
+    let invert x = x |> R.of_rank |> R.invert
+    let calculate p = p |> R.calculate |> R.to_rank
+
+    let perform_fixed_move = Move_table.lookup     move_table
+    let perform_symmetry   = Symmetry_table.lookup sym_table
+  end
+
+(* Placeholder definition *)
+module Memoize_sym (S : Sym) (_ : Memoization) =
+  struct
+    include S
   end
 
 module type Raw_base =
   sig
     type t
     val to_rank : t -> int
+    val of_rank : int -> t
     val n : int
     val zero : t
     val next : t -> t option
@@ -127,9 +187,8 @@ module Raw_of_calculate_invert (R : Raw_base) : Raw with type t := R.t =
       |> calculate
   end
 
-module Phase1 =
+module Phase1 = 
   struct
-
     (* Orientation of corners *)
     module Twist : Raw =
       struct
@@ -345,6 +404,7 @@ module Phase1 =
             *)
             type t = { ud_slice : UD_slice.t ; flip : Flip.t }
             let to_rank { ud_slice ; flip } = Flip.n * UD_slice.to_rank ud_slice + Flip.to_rank flip
+            let of_rank i = { ud_slice = UD_slice.of_rank (i / Flip.n) ; flip = Flip.of_rank (i mod Flip.n) }
             let n = Flip.n * UD_slice.n
 
             let zero = { ud_slice = UD_slice.zero ; flip = Flip.zero }

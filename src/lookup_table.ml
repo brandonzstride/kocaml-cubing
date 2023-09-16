@@ -50,18 +50,17 @@ module Make2D (Key1 : Key) (Key2 : Key) (R : Return_type) =
       |> Sexp.save filename
 
     let create (ls : R.t list list) =
-      let total_len =
-        ls
-        |> List.map ~f:List.length
-        |> List.fold ~init:0 ~f:(+)
-      in
+      let lens = ls |> List.map ~f:List.length in
+      let is_rectangular = let n = List.hd_exn lens in List.for_all lens ~f:((=) n) in
+      let total_len = List.fold lens ~init:0 ~f:(+) in
       assert (total_len = (Key1.n * Key2.n));
+      assert is_rectangular;
       ls
       |> List.join
       |> Array.of_list
 
     let lookup (table : t) (k1 : Key1.t) (k2 : Key2.t) =
-      let i = (Key1.to_rank k1) * Key2.n + Key2.to_rank k2 in
-      Array.nget table i
+      (Key1.to_rank k1) * Key2.n + Key2.to_rank k2
+      |> Array.nget table
     
   end
