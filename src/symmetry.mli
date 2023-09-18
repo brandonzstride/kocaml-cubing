@@ -12,6 +12,7 @@ module type S =
     val n : int
     val next : t -> t option
     val zero : t
+    val all : t list (* if I have this, I might not want `next`, `zero` *)
   end
 
 (* Issue is that coordinate currently refers to this S, but

@@ -64,9 +64,8 @@ module M_edge_perm = M (struct let filename = "edge_perm_test.sexp" end)
 let test_memoized_coordinates_inverses _ =
   let open Coordinate.Phase1 in
   let open Coordinate.Phase2 in
-  test_coordinate_inverses (module Coordinate.Memoize_raw (Twist) (M_twist))
-  (* this is commented out because it takes a long time. I should see about speeding it up *) 
-  (* test_coordinate_inverses (module Coordinate.Memoize_raw (Edge_perm) (M_edge_perm)) *)
+  test_coordinate_inverses (module Coordinate.Memoize_raw (Twist) (M_twist));
+  test_coordinate_inverses (module Coordinate.Memoize_raw (Edge_perm) (M_edge_perm))
 ;; 
 
 print_endline (Core_unix.getcwd ())

@@ -1,3 +1,10 @@
+(*
+  The lookup tables use arrays for quick access, so they use mutation,
+  but this is all behind the scenes, so users of the lookup table can
+  be purely functional.
+*)
+
+
 open Core
 
 module type Key =
@@ -14,6 +21,8 @@ module type Return_type =
 
 module Make1D (Key : Key) (R : Return_type) =
   struct
+    assert (Key.n <> 0)
+
     type t = R.t array [@@deriving sexp]
 
     let from_file (filename : string) =
@@ -25,6 +34,10 @@ module Make1D (Key : Key) (R : Return_type) =
       table
       |> sexp_of_t
       |> Sexp.save filename
+
+    let create' (ls : 'a list) ~(f : 'a -> R.t) : t =
+      assert (List.length ls = Key.n);
+      Array.of_list_map ls ~f
 
     let create (ls : R.t list) =
       assert (List.length ls = Key.n);
@@ -37,6 +50,8 @@ module Make1D (Key : Key) (R : Return_type) =
 
 module Make2D (Key1 : Key) (Key2 : Key) (R : Return_type) =
   struct
+    assert (Key1.n <> 0 && Key2.n <> 0)
+
     type t = R.t array [@@deriving sexp]
 
     let from_file (filename : string) =
@@ -48,6 +63,18 @@ module Make2D (Key1 : Key) (Key2 : Key) (R : Return_type) =
       table
       |> sexp_of_t
       |> Sexp.save filename
+
+    let create' (l1 : 'a list) (l2 : 'b list) ~(f : 'a -> 'b -> R.t) : t =
+      assert (List.length l1 = Key1.n);
+      assert (List.length l2 = Key2.n);
+      let x = f (List.hd_exn l1) (List.hd_exn l2) in (* default value for array *)
+      let arr = Array.create x ~len:(Key1.n * Key2.n) in
+      List.iteri l1 ~f:(fun i1 -> fun a ->
+        List.iteri l2 ~f:(fun i2 -> fun b ->
+          Array.set arr (Key2.n * i1 + i2) (f a b)
+        )
+      );
+      arr
 
     let create (ls : R.t list list) =
       let lens = ls |> List.map ~f:List.length in

@@ -20,6 +20,7 @@ module type Raw =
     val zero : t
     (* How many coordinates there are *)
     val n : int
+    val all : unit -> t list (* use sparingly *)
   end
 
 (* Should sym coordinates always be memoized? *)
@@ -118,6 +119,7 @@ module type Sym =
     val zero_representative : t
     (* Number of equivalence classes i.e. number of representatives *)
     val n : int
+    val all : unit -> t list (* use sparingly *)
   end
 
 module Sym_of_raw (_ : Raw) : Sym

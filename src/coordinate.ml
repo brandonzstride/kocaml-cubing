@@ -25,6 +25,7 @@ module type Raw =
     val zero : t
     (* How many coordinates there are *)
     val n : int
+    val all : unit -> t list
   end
 
 module type Sym =
@@ -47,6 +48,7 @@ module type Sym =
     val zero_representative : t
     (* Number of equivalence classes i.e. number of representatives *)
     val n : int
+    val all : unit -> t list
   end
 
 
@@ -63,6 +65,7 @@ module Sym_of_raw (R : Raw) : Sym =
     let get_symmetry _ = Symmetry.S.zero
     let zero_representative = R.zero
     let n = R.n
+    let all = R.all
   end
 
 module type Memoization =
@@ -93,6 +96,7 @@ module Int_coord (N : sig val n : int end) =
     let n = N.n
     let zero = 0
     let next x = if x = n - 1 then None else Some (x + 1)
+    let all () = List.init n ~f:Fn.id
   end
 
 module Memoize_raw (R : Raw) (M : Memoization) =
@@ -111,36 +115,13 @@ module Memoize_raw (R : Raw) (M : Memoization) =
 
     let move_table =
       if M.is_already_saved then Move_table.from_file M.move_save_location else
-      let coord_move_list =
-        let rec loop = function
-        | None -> []
-        | Some (x : R.t) ->
-          List.map Move.Fixed_move.all ~f:(fun m -> R.perform_fixed_move x m |> R.to_rank) :: loop (R.next x)
-        in
-        loop (Some R.zero)
-      in
-      let tbl = Move_table.create coord_move_list in
+      let tbl = Move_table.create' (R.all ()) Move.Fixed_move.all ~f:(fun x m -> R.perform_fixed_move x m |> R.to_rank) in
       (* Move_table.to_file tbl M.move_save_location; *)
       tbl
 
     let sym_table =
       if M.is_already_saved then Symmetry_table.from_file M.sym_save_location else
-      let sym_all = 
-        let rec loop = function
-        | None -> []
-        | Some (s : Symmetry.S.t) -> s :: loop (Symmetry.S.next s)
-        in
-        loop (Some Symmetry.S.zero)
-      in
-      let sym_coord_list =
-        let rec loop = function
-        | None -> []
-        | Some (x : R.t) ->
-          List.map sym_all ~f:(fun s -> R.perform_symmetry x s |> R.to_rank) :: loop (R.next x)
-        in
-        loop (Some R.zero)
-      in
-      let tbl = Symmetry_table.create sym_coord_list in
+      let tbl = Symmetry_table.create' (R.all ()) Symmetry.S.all ~f:(fun x s -> R.perform_symmetry x s |> R.to_rank) in
       (* Symmetry_table.to_file tbl M.sym_save_location; *)
       tbl
 
@@ -168,6 +149,7 @@ module type Raw_base =
     val next : t -> t option
     val invert : t -> Perm.t
     val calculate : Perm.t -> t
+    val all : unit -> t list
   end
 
 (* Performs fixed moves and symmetries once everything else is provided from Raw *)
@@ -413,6 +395,13 @@ module Phase1 =
               | None, None -> None
               | _ , Some x -> Some { ud_slice ; flip = x }
               | Some x, None -> Some { ud_slice = x ; flip = Flip.zero }
+
+            let all () = 
+              let rec loop = function
+              | None -> []
+              | Some x -> x :: loop (next x)
+              in
+              loop (Some zero)
             
             let invert (x : t) : Perm.t =
               Move.(Flip.invert x.flip * UD_slice.invert x.ud_slice)

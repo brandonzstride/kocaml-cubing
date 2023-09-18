@@ -31,6 +31,7 @@ module Make1D (Key : Key) (R : Return_type) :
     val from_file : string -> t
     val to_file : t -> string -> unit
     val create : R.t list -> t
+    val create' : 'a list -> f:('a -> R.t) -> t
     val lookup : t -> Key.t -> R.t
   end
 
@@ -40,5 +41,6 @@ module Make2D (Key1 : Key) (Key2 : Key) (R : Return_type) :
     val from_file : string -> t
     val to_file : t -> string -> unit
     val create : R.t list list -> t
+    val create' : 'a list -> 'b list -> f:('a -> 'b -> R.t) -> t
     val lookup : t -> Key1.t -> Key2.t -> R.t
   end
