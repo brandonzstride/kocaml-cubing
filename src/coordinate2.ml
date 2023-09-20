@@ -53,9 +53,15 @@ module Make (Sym : Symmetry.S) =
         val all : unit -> t list (* gets all reprsentatives of eq classes *)
       end
     
-    module Sym_base_of_raw (R : Coordinate) =
+    module Sym_base_of_raw (R : Coordinate) : Sym_base =
       struct
         module Raw = R
+        (*
+          In the Sym_base, we have an intermediate symmetry coordinate.
+          It is not a full-blown symmetry coordinate as Kociemba describes.
+          The representative is kept as a raw coordinate, and the symmetry
+          is not yet stored as rank.
+        *)
         type t =
           { rep : R.t     (* the representative raw coordinate of the symmetry class *)
           ; sym : Sym.t } (* the symmetry that converts the raw coord to the rep *)
@@ -82,7 +88,7 @@ module Make (Sym : Symmetry.S) =
           let rep, sym_i = 
             r
             |> get_sym_class
-            |> argmin R.compare
+            |> argmin R.compare (* find smallest raw coordinate in class and its symmetry index *)
             |> Option.value_exn
           in
           { rep ; sym = Sym.of_rank sym_i }
@@ -110,8 +116,20 @@ module Make (Sym : Symmetry.S) =
           let y = R.perform_fixed_move x.rep m' |> of_raw in
           { rep = y.rep ; sym = Sym.mult y.sym x.sym }
           
+        (*
+          To perform a symmetry s, we need to consider the new symmetry
+          it will take to transform to the representative.
+          Currently, 
+            R = S * P * S^-1
+          and we want to apply s to P and find the symmetry needed to take
+          s * P * s^-1 to the representative R.
+          We have
+            (S * s^-1) * s * P * s^-1 * (S * s^-1)^-1 = R
+          So the new symmetry of this coordinate is
+            S * s^-1
+        *)
         let perform_symmetry (x : t) (s : Sym.t) : t =
-          { x with sym = Sym.mult x.sym s }
+          { x with sym = Sym.mult x.sym (Sym.inverse s) }
 
         (* very computationally expensive to get all reps *)
         let all () =
