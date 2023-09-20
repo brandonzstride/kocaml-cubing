@@ -58,3 +58,14 @@
     lookup_table)
   (preprocess
     (pps ppx_jane)))
+
+(library
+  (name coordinate2)
+  (modules coordinate2)
+  (libraries
+    perm
+    move
+    symmetry
+    lookup_table)
+  (preprocess
+    (pps ppx_jane)))

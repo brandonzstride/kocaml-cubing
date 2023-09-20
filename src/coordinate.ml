@@ -5,11 +5,11 @@ open Core
 
 module type Raw =
   sig
-    type t
+    type t [@@deriving sexp, compare]
     (* find a representative permutation for the coordinate *)
-    val invert : t -> Perm.t
+    val to_perm : t -> Perm.t
     (* calculate the coordinate for a given permutation *)
-    val calculate : Perm.t -> t
+    val of_perm : Perm.t -> t
     (* calculate the resulting coordinate after applying one of the regular, fixed moves *)
     val perform_fixed_move : t -> Move.Fixed_move.t -> t
     (* Cube P with coordinate x and symmetry S. Gets coordinate of S * P * S^-1 *)
@@ -30,9 +30,9 @@ module type Raw =
 
 module type Sym =
   sig
-    type t
-    val invert : t -> Perm.t
-    val calculate : Perm.t -> t
+    type t [@@deriving sexp, compare]
+    val to_perm : t -> Perm.t
+    val of_perm : Perm.t -> t
     val perform_fixed_move : t -> Move.Fixed_move.t -> t
     val perform_symmetry : t -> Symmetry.S.t -> t
     (* Get the representative of the next class, not just the next coordinate *)
@@ -51,21 +51,121 @@ module type Sym =
     val all : unit -> t list
   end
 
+module Int_coord (N : sig val n : int end) =
+  struct
+    type t = int [@@deriving sexp, compare]
+    let to_rank = Fn.id
+    let of_rank = Fn.id
+    let n = N.n
+    let zero = 0
+    let next x = if x = n - 1 then None else Some (x + 1)
+    let all () = List.init n ~f:Fn.id
+  end
+
 
 module Sym_of_raw (R : Raw) : Sym =
   struct
-    (* Placeholder for now *)
-    type t = R.t
-    let invert = R.invert
-    let calculate = R.calculate
-    let perform_fixed_move = R.perform_fixed_move
-    let perform_symmetry = R.perform_symmetry
-    let next_representative = R.next
-    let to_eq_class_rank = R.to_rank
-    let get_symmetry _ = Symmetry.S.zero
-    let zero_representative = R.zero
-    let n = R.n
-    let all = R.all
+
+    module Rset = Set.Make (R)
+
+    (* is a set of all representative raw coordinates *)
+    let raw_reps = 
+      let get_sym_class x =
+        Symmetry.S.all
+        |> List.map ~f:(fun s -> R.perform_symmetry x s)
+        |> Rset.of_list
+      in
+      let rec loop reps is_done = function
+      | None -> assert (Set.length is_done = R.n); reps
+      | Some x when Set.mem is_done x -> loop reps is_done (R.next x)
+      | Some x ->
+        let sym_class = get_sym_class x in (* nonempty because includes x *)
+        let rep = Set.min_elt_exn sym_class in
+        let is_done = Set.fold sym_class ~init:is_done ~f:Set.add in
+        loop (Set.add reps rep) is_done (R.next x)
+      in loop Rset.empty Rset.empty (Some R.zero)
+
+    (*
+      Externally, it will appear as if there are only as many coordinates
+      as there are classes. Internally, there are a multiple of
+      Symmetry.S.n more.
+    *)
+    module I = Int_coord (struct let n = Set.length raw_reps end)
+    include I
+
+    let to_eq_class_rank x = x / Symmetry.S.n
+    let get_symmetry_rank x = x mod Symmetry.S.n (* private *)
+    let get_symmetry x = x |> get_symmetry_rank |> Symmetry.S.of_rank
+    
+    let next_representative x = to_eq_class_rank x |> I.next
+    let zero_representative = I.zero
+
+    module Class_to_rep_table = Lookup_table.Make1D
+      (struct
+        type t = int
+        let to_rank = Fn.id
+      end) 
+      (R)
+
+    (* might just use Set.nth, but I would have to consider speed before making choice *)
+    let class_to_rep_table = Class_to_rep_table.create (Set.to_list raw_reps)
+
+    module Rmap = Map.Make (R)
+
+    (* Takes raw representative coordinate and maps to symmetry class index *)
+    let rep_to_class_map =
+      raw_reps
+      |> Set.to_list
+      |> List.foldi ~init:Rmap.empty ~f:(fun i accum r -> Map.add_exn accum ~key:r ~data:i)
+
+    let to_raw_rep (x : t) : R.t =
+      x
+      |> to_eq_class_rank
+      |> Class_to_rep_table.lookup class_to_rep_table
+
+    let to_raw (x : t) : R.t =
+      x
+      |> get_symmetry (* the symmetry that converts the raw coord to the rep raw coord *)
+      |> Symmetry.S.inverse (* now the symmetry that converts rep to coord *)
+      |> R.perform_symmetry (to_raw_rep x)
+
+    let of_symmetry_and_raw (s : Symmetry.S.t) (x : R.t) : t =
+      let rep_rank =
+        let raw_rep = R.perform_symmetry x s in
+        match Map.find rep_to_class_map raw_rep with (* finds class rank of rep coord *)
+        | Some i -> i
+        | None -> failwith "invalid representative coordinate" (* logically impossible *)
+      in
+      Symmetry.S.n * rep_rank + Symmetry.S.to_rank s
+
+    (* x could be as large as n * Symmetry.S.n *)
+    let to_perm (x : t) : Perm.t =
+      x
+      |> to_raw
+      |> R.to_perm
+
+    let of_perm (p : Perm.t) : t =
+      let raw = R.of_perm p in
+      let f s = R.perform_symmetry raw s |> Set.mem raw_reps in
+      match List.find Symmetry.S.all ~f:f with
+      | Some s -> of_symmetry_and_raw s raw
+      | None -> failwith "no equivalence class found for given permutation" (* logically impossible *)
+
+    let perform_fixed_move (x : t) (m : Move.Fixed_move.t) : t =
+      (*
+        Process:
+        1. Convert to raw representative coordinate
+        2. Convert move to equivalent move on rep
+        3. Apply move to rep
+        4. Convert resulting raw to sym
+        5. Handle symmetry? See notes
+      *)
+      (* placeholder *)
+      let _ = x in let _ = m in zero_representative
+
+    let perform_symmetry _ = failwith "unimplemented"
+
+
   end
 
 module type Memoization =
@@ -88,16 +188,6 @@ let rec fac = function
 let ncr n r =
   fac n / (fac r * fac (n - r))
 
-module Int_coord (N : sig val n : int end) =
-  struct
-    type t = int [@@deriving sexp]
-    let to_rank = Fn.id
-    let of_rank = Fn.id
-    let n = N.n
-    let zero = 0
-    let next x = if x = n - 1 then None else Some (x + 1)
-    let all () = List.init n ~f:Fn.id
-  end
 
 module Memoize_raw (R : Raw) (M : Memoization) =
   struct
@@ -126,8 +216,8 @@ module Memoize_raw (R : Raw) (M : Memoization) =
       tbl
 
     (* these don't get called much, and memoizing would take too much space *)
-    let invert x = x |> R.of_rank |> R.invert
-    let calculate p = p |> R.calculate |> R.to_rank
+    let to_perm x = x |> R.of_rank |> R.to_perm
+    let of_perm p = p |> R.of_perm |> R.to_rank
 
     let perform_fixed_move = Move_table.lookup     move_table
     let perform_symmetry   = Symmetry_table.lookup sym_table
@@ -141,14 +231,14 @@ module Memoize_sym (S : Sym) (_ : Memoization) =
 
 module type Raw_base =
   sig
-    type t
+    type t [@@deriving sexp, compare]
     val to_rank : t -> int
     val of_rank : int -> t
     val n : int
     val zero : t
     val next : t -> t option
-    val invert : t -> Perm.t
-    val calculate : Perm.t -> t
+    val to_perm : t -> Perm.t
+    val of_perm : Perm.t -> t
     val all : unit -> t list
   end
 
@@ -157,16 +247,16 @@ module Raw_of_calculate_invert (R : Raw_base) : Raw with type t := R.t =
   struct
     include R
 
-    let perform_fixed_move (x : t) (m : Move.Fixed_move.t) : t=
+    let perform_fixed_move (x : t) (m : Move.Fixed_move.t) : t =
       let m = Move.Fixed_move.to_move m in
-      let p = invert x in
-      Perm.perform_move p m |> calculate
+      let p = R.to_perm x in
+      Perm.perform_move p m |> R.of_perm
       
     let perform_symmetry (x : t) (s : Symmetry.S.t) : t = 
       x
-      |> invert
+      |> R.to_perm
       |> Symmetry.S.on_perm s
-      |> calculate
+      |> R.of_perm
   end
 
 module Phase1 = 
@@ -196,7 +286,7 @@ module Phase1 =
               the last orientation because it must make the sum of all
               orientations 0 mod 3. We leave facelets the same; we only twist.
             *)
-            let invert (x : t) : Perm.t =
+            let to_perm (x : t) : Perm.t =
               let open Cubie in
               let rec go x = function
               | [] -> failwith "impossible if cube permutation is well-formed"
@@ -219,7 +309,7 @@ module Phase1 =
               Iterate over all corners (except for the last, least significant one),
               and make each one its own digit in a base 3 number.   
             *)
-            let calculate (p : Perm.t) : t =
+            let of_perm (p : Perm.t) : t =
               let open Cubie.Corner in (* how come we need to open Cubie.Corner to access record field o? *)
               let rec go acc = function
               | [] | [_] -> acc (* ignores least signficant corner *)
@@ -260,7 +350,7 @@ module Phase1 =
               twists corners according to each bit. See `Twist.invert` for the
               analogous function on corners.
             *)
-            let invert (x : t) : Perm.t =
+            let to_perm (x : t) : Perm.t =
               let open Cubie in
               let rec go x = function
               | [] -> failwith "impossible if cube permutation is well-formed"
@@ -283,7 +373,7 @@ module Phase1 =
               Iterate over all edges (except for the last, least significant one),
               and make each one its own digit in a binary number.
             *)
-            let calculate (p : Perm.t) : t =
+            let of_perm (p : Perm.t) : t =
               let open Cubie.Edge in
               let rec go acc = function
               | [] | [_] -> acc (* ignores least signficant edge *)
@@ -325,7 +415,7 @@ module Phase1 =
               Otherwise, fill with some ud_slice edge, decrease k, and
               subtract off nCr i k from the coordinate before continuing.
             *)
-            let invert (x : t) : Perm.t =
+            let to_perm (x : t) : Perm.t =
               let open Cubie in
               let is_filled x i k = x < ncr i k in
               let ud_slice = List.map Edge.all_ud_slice_edges ~f:(fun e -> Edge e) in
@@ -354,7 +444,7 @@ module Phase1 =
               Ignore if k is negative.
               Sum these to get the coordinate.
             *)
-            let calculate (p : Perm.t) : t =
+            let of_perm (p : Perm.t) : t =
               let is_filled e = Cubie.Edge e |> p |> Cubie.is_ud_slice in
               let rec go i k = function
               | _ when k < 0 -> 0
@@ -384,9 +474,14 @@ module Phase1 =
               Flip UD Slice is a combination of the Flip coordinate and
               UD Slice coordinates. We choose to represent it as a record.
             *)
-            type t = { ud_slice : UD_slice.t ; flip : Flip.t }
+            type t = { ud_slice : UD_slice.t ; flip : Flip.t } [@@deriving compare] (* TODO: test that this is same as to_rank and Int.compare *)
             let to_rank { ud_slice ; flip } = Flip.n * UD_slice.to_rank ud_slice + Flip.to_rank flip
             let of_rank i = { ud_slice = UD_slice.of_rank (i / Flip.n) ; flip = Flip.of_rank (i mod Flip.n) }
+          
+            (* use the rank for sexp representation *)
+            let t_of_sexp s = s |> Int.t_of_sexp |> of_rank
+            let sexp_of_t x = x |> to_rank |> Int.sexp_of_t
+
             let n = Flip.n * UD_slice.n
 
             let zero = { ud_slice = UD_slice.zero ; flip = Flip.zero }
@@ -403,11 +498,11 @@ module Phase1 =
               in
               loop (Some zero)
             
-            let invert (x : t) : Perm.t =
-              Move.(Flip.invert x.flip * UD_slice.invert x.ud_slice)
+            let to_perm (x : t) : Perm.t =
+              Move.(Flip.to_perm x.flip * UD_slice.to_perm x.ud_slice)
             
-            let calculate (p : Perm.t) : t =
-              { ud_slice = UD_slice.calculate p ; flip = Flip.calculate p }
+            let of_perm (p : Perm.t) : t =
+              { ud_slice = UD_slice.of_perm p ; flip = Flip.of_perm p }
           end (* end T *)
 
         include T
@@ -425,8 +520,6 @@ module Phase1 =
 
 module Phase2 =
   struct
-
-    (* some of my utop tests show that perm coords are not working. *)
 
     (*
       Functor for a permutation coordinate on some cubies.   
@@ -461,7 +554,7 @@ module Phase2 =
               cubies that are replaced by a larger cubie than c_i is replaced by,
               and multiply by i!.
             *)
-            let calculate (p : Perm.t) : t =
+            let of_perm (p : Perm.t) : t =
               (* count the number of cubies to the left that are mapped to a larger value *)
               let count_inversions c ls =
                 let pc = (p c) in
@@ -489,7 +582,7 @@ module Phase2 =
               i! to get exactly the rank that concerns us.
               Then for next step, subract off this rank * i!, and repeat.
             *)
-            let invert (x : t) : Perm.t =
+            let to_perm (x : t) : Perm.t =
               let rm x = List.filter ~f:(fun a -> cubie_compare x a <> 0) in
               (* 
                 Here matching on list of cubies we're mapping, and ls is all possible cubies

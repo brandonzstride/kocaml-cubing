@@ -31,7 +31,7 @@ let test_move_sequence _ =
 (* Iterates through all possible coordinates and asserts that each is uniquely calculated *)
 let test_coordinate_inverses (module Raw_coord : Coordinate.Raw) =
   let verify_inverse x =
-    assert_equal (Raw_coord.to_rank x) (x |> Raw_coord.invert |> Raw_coord.calculate |> Raw_coord.to_rank)
+    assert_equal (Raw_coord.to_rank x) (x |> Raw_coord.to_perm |> Raw_coord.of_perm |> Raw_coord.to_rank)
   in
   let rec loop = function
   | None -> ()

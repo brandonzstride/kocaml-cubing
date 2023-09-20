@@ -1,10 +1,24 @@
+(*
+  I'm reconsidering this setup because I have to create a sym coord from
+  a raw coord, and then use that to make a memoized coordinate.
+  i.e. in order to get a memoized coordinate that is already saved, I still
+  have to compute the symmetry coordinate. This might be slow.
+  However, I definitely need to do this because I need to get a coordinate
+  from a cube no matter what, and this requires inverting the coordinate.
+  Possibly, I will only compute the sym coordinate upon memoization, i.e. the
+  memoization takes in a raw coordinate as input, and I will do the conversions
+  there.
+*)
+
+
+(* consider of_sexp and to_sexp, where we use of and to rank *)
 module type Raw =
   sig
-    type t
+    type t [@@deriving sexp, compare]
     (* find a representative permutation for the coordinate *)
-    val invert : t -> Perm.t
+    val to_perm : t -> Perm.t
     (* calculate the coordinate for a given permutation *)
-    val calculate : Perm.t -> t
+    val of_perm : Perm.t -> t
     (* calculate the resulting coordinate after applying one of the regular, fixed moves *)
     val perform_fixed_move : t -> Move.Fixed_move.t -> t
     (* Cube P with coordinate x and symmetry S. Gets coordinate of S * P * S^-1 *)
@@ -102,9 +116,9 @@ module type Raw =
 
 module type Sym =
   sig
-    type t
-    val invert : t -> Perm.t
-    val calculate : Perm.t -> t
+    type t [@@deriving sexp, compare]
+    val to_perm : t -> Perm.t
+    val of_perm : Perm.t -> t
     val perform_fixed_move : t -> Move.Fixed_move.t -> t
     val perform_symmetry : t -> Symmetry.S.t -> t
     (* Get the representative of the next class, not just the next coordinate *)
@@ -160,15 +174,16 @@ module Memoize_sym (_ : Sym) (_ : Memoization) : Sym
 module Phase1 : 
   sig
     module Twist : Raw
-    module Flip : Raw (* exposed only for testing *)
-    module UD_slice : Raw (* exposed only for testing *)
+    module Flip : Raw              (* only exposed for testing *)
+    module UD_slice : Raw          (* only exposed for testing *)
+    module Flip_UD_slice_raw : Raw (* only exposed for testing *)
     module Flip_UD_slice : Sym
   end
 
 module Phase2 :
   sig
     module Edge_perm : Raw
-    module Corner_perm_raw : Raw
+    module Corner_perm_raw : Raw   (* only exposed for testing*)
     module Corner_perm : Sym
     module UD_slice_perm : Raw
   end

@@ -17,6 +17,7 @@ type t = T.t
 (* Since domain is finite and behavior of moves are limited, we can compare *)
 val equal : t -> t -> bool
 
+(* Compose the two moves. The second is applied first, like how (f * g)(x) ~= f(g(x)) *)
 val ( * ) : t -> t -> t
 
 module Faceturn : sig

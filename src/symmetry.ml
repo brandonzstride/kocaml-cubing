@@ -97,6 +97,7 @@ module type S =
     val on_perm : t -> Perm.t -> Perm.t
     val on_move : t -> Move.Fixed_move.t -> Move.Fixed_move.t
     val to_rank : t -> int
+    val of_rank : int -> t
     val n : int
     val next : t -> t option
     val zero : t
