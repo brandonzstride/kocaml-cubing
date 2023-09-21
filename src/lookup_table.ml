@@ -13,12 +13,6 @@ module type Key =
     val to_rank : t -> int
   end
 
-module type Key2D =
-  sig
-    include Key
-    val n : int
-  end
-
 module type Return_type =
   sig
     type t [@@deriving sexp]
@@ -38,10 +32,10 @@ module Make1D (Key : Key) (R : Return_type) =
       |> sexp_of_t
       |> Sexp.save filename
 
-    let create' (ls : 'a list) ~(f : 'a -> R.t) : t =
+    let create (ls : 'a list) ~(f : 'a -> R.t) : t =
       Array.of_list_map ls ~f
 
-    let create (ls : R.t list) =
+    let of_list (ls : R.t list) =
       Array.of_list ls
 
     let lookup (table : t) (k : Key.t) =
@@ -51,9 +45,12 @@ module Make1D (Key : Key) (R : Return_type) =
       Array.length table
   end
 
-module Make2D (Key1 : Key2D) (Key2 : Key2D) (R : Return_type) =
+module Make2D (Key1 : Key) (Key2 : Key) (R : Return_type) =
   struct
-    type t = R.t array [@@deriving sexp]
+    type t = 
+      { arr : R.t array
+      ; n1  : int
+      ; n2  : int } [@@deriving sexp]
 
     let from_file (filename : string) =
       filename
@@ -65,28 +62,20 @@ module Make2D (Key1 : Key2D) (Key2 : Key2D) (R : Return_type) =
       |> sexp_of_t
       |> Sexp.save filename
 
-    let create' (l1 : 'a list) (l2 : 'b list) ~(f : 'a -> 'b -> R.t) : t =
+    let create ?(n1 : int option) ?(n2 : int option) (l1 : 'a list) (l2 : 'b list) ~(f : 'a -> 'b -> R.t) : t =
+      let get_n ls n = match n with None -> List.length ls | Some x -> x in
+      let n1 = get_n l1 n1 in let n2 = get_n l2 n2 in
       let x = f (List.hd_exn l1) (List.hd_exn l2) in (* default value for array *)
-      let arr = Array.create x ~len:(Key1.n * Key2.n) in
+      let arr = Array.create x ~len:(n1 * n2) in
       List.iteri l1 ~f:(fun i1 -> fun a ->
         List.iteri l2 ~f:(fun i2 -> fun b ->
-          Array.set arr (Key2.n * i1 + i2) (f a b)
+          Array.set arr (n2 * i1 + i2) (f a b)
         )
       );
-      arr
-
-    let create (ls : R.t list list) =
-      let lens = ls |> List.map ~f:List.length in
-      let is_rectangular = let n = List.hd_exn lens in List.for_all lens ~f:((=) n) in
-      let total_len = List.fold lens ~init:0 ~f:(+) in
-      assert (total_len = (Key1.n * Key2.n));
-      assert is_rectangular;
-      ls
-      |> List.join
-      |> Array.of_list
+      { arr ; n1 ; n2 }
 
     let lookup (table : t) (k1 : Key1.t) (k2 : Key2.t) =
-      (Key1.to_rank k1) * Key2.n + Key2.to_rank k2
-      |> Array.nget table
+      (Key1.to_rank k1) * table.n2 + Key2.to_rank k2
+      |> Array.nget table.arr
     
   end

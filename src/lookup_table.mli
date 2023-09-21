@@ -9,20 +9,12 @@
 
   The way we will represent this is by N-dimensional arrays, and each dimension has a to_rank function.
 
-  To create a lookup table, we will suppose that everything is already in a list, and we save exactly as is.
-
 *)
 
 module type Key =
   sig
     type t
     val to_rank : t -> int
-  end
-
-module type Key2D =
-  sig
-    include Key
-    val n : int (* number of possible values in they key *)
   end
 
 module type Return_type =
@@ -35,18 +27,17 @@ module Make1D (Key : Key) (R : Return_type) :
     type t
     val from_file : string -> t
     val to_file : t -> string -> unit
-    val create : R.t list -> t
-    val create' : 'a list -> f:('a -> R.t) -> t
+    val of_list : R.t list -> t
+    val create : 'a list -> f:('a -> R.t) -> t
     val lookup : t -> Key.t -> R.t
     val get_n : t -> int
   end
 
-module Make2D (Key1 : Key2D) (Key2 : Key2D) (R : Return_type) :
+module Make2D (Key1 : Key) (Key2 : Key) (R : Return_type) :
   sig
     type t
     val from_file : string -> t
     val to_file : t -> string -> unit
-    val create : R.t list list -> t
-    val create' : 'a list -> 'b list -> f:('a -> 'b -> R.t) -> t
+    val create : ?n1:int -> ?n2:int -> 'a list -> 'b list -> f:('a -> 'b -> R.t) -> t
     val lookup : t -> Key1.t -> Key2.t -> R.t
   end

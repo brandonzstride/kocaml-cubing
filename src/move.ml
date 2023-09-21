@@ -21,7 +21,7 @@ let ( * ) a b = fun x -> a x |> b
 
 module Faceturn =
   struct
-    type t = U | R | F | D | B | L [@@deriving enumerate, variants]
+    type t = U | R | F | D | B | L [@@deriving enumerate, variants, sexp]
 
     (* While it's typically more readable to give each match case its own line
         in this specific situation, it seems better to group them on a line *)
@@ -96,7 +96,7 @@ module Faceturn =
 
 module Fixed_move = 
   struct
-    type t = { faceturn : Faceturn.t ; count : Modular_int.Z4.t } [@@deriving enumerate]
+    type t = { faceturn : Faceturn.t ; count : Modular_int.Z4.t } [@@deriving enumerate, sexp]
 
     let to_rank x = 
       assert (Modular_int.Z4.to_int x.count <> 0);

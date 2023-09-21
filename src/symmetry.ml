@@ -6,8 +6,6 @@
 
 open Core
 
-[@@@ocaml.warning "-27"] (* unused variable declarations *)
-
 module Generator =
   struct
     (*
@@ -60,7 +58,13 @@ module Generator =
         let c' = begin match c with
         | URF -> UFL | UFL -> URF | UBR -> ULB | ULB -> UBR
         | DFR -> DLF | DLF -> DFR | DBL -> DRB | DRB -> DBL end
-        in Corner { c = c' ; o }
+        in
+        let f_o x =
+          x
+          |> Modular_int.Z3.to_int
+          |> (function 0 -> 0 | 1 -> 2 | _ -> 1)
+          |> Modular_int.Z3.of_int
+        in Corner { c = c' ; o = f_o o }
       end
   end
 
@@ -89,22 +93,7 @@ module Multiples =
     | _ -> failwith "bad symmetry multiple"
   end
 
-module type S = 
-  sig
-    type t
-    val mult : t -> t -> t
-    val inverse : t -> t
-    val on_perm : t -> Perm.t -> Perm.t
-    val on_move : t -> Move.Fixed_move.t -> Move.Fixed_move.t
-    val to_rank : t -> int
-    val of_rank : int -> t
-    val n : int
-    val next : t -> t option
-    val zero : t
-    val all : t list
-  end
-
-module S : S =
+module S =
   struct
     (* s = 8x_2 + 2x_3 + x_4 *)
     (* m = S_F2^x_2 * S_U4^x_3 * S_LR2^x_4 *)
@@ -121,13 +110,6 @@ module S : S =
 
     let to_rank { x_2 ; x_3 ; x_4 } =
       Modular_int.(Z2.to_int x_2 * 8 + Z4.to_int x_3 * 2 + Z2.to_int x_4)
-
-    let zero =
-      Modular_int.(
-        { x_2 = Z2.of_int 0
-        ; x_3 = Z4.of_int 0
-        ; x_4 = Z2.of_int 0 }
-      )
     
     let n = List.length all (* should be 16 *)
 
@@ -138,9 +120,9 @@ module S : S =
         ; x_4 = Z2.of_int x }
       )
     
-    let next x =
+    (* let next x =
       let x' = to_rank x + 1 in
-      if x' = n then None else Some (of_rank x')
+      if x' = n then None else Some (of_rank x') *)
 
     let to_move (s : t) : Move.t =
       let open Move in
@@ -174,18 +156,56 @@ module S : S =
       List.find Fixed_move.all ~f:(fun a -> equal (Fixed_move.to_move a) m')
       |> function
         | Some m -> m
-        | None -> failwith "could not find equivalent move under symmetry"
+        | None -> print_endline (to_rank s |> string_of_int); failwith "could not find equivalent move under symmetry"
 
   end
 
-module type Memoization =
-  sig
-    val is_already_saved : bool
-    val save_location : string
-  end
+(*
+  The symmetry module is small enough that I can precompute everything
+  before the program starts. Since there are only sixteen symmetries,
+  this will be very fast.   
+*)
 
-(* placeholder *)
-module Memoize (S : S) (_ : Memoization) : S with type t := S.t = 
+(*
+  The integer representing the symmetry will be exactly the rank in
+  the module S above.   
+*)
+module I =
   struct
-    include S
+    type t = int [@@deriving sexp]
+    let n = S.n
+    let to_rank = Fn.id
   end
+
+include I
+
+let of_rank = Fn.id
+let next x = if x = n - 1 then None else Some (x + 1)
+let zero = 0
+let all = List.map S.all ~f:S.to_rank
+
+module Sym_mult_table = Lookup_table.Make2D (I) (I) (I)
+
+let sym_mult_table =
+  Sym_mult_table.create all all ~f:(fun x1 x2 -> S.mult (S.of_rank x1) (S.of_rank x2) |> S.to_rank)
+
+let mult = Sym_mult_table.lookup sym_mult_table
+
+module Sym_inverse_table = Lookup_table.Make1D (I) (I)
+
+let inverse =
+  all
+  |> Sym_inverse_table.create ~f:(fun x -> x |> S.of_rank |> S.inverse |> S.to_rank)
+  |> Sym_inverse_table.lookup
+
+(* no memoization possible because there are too many possible permutations *)
+let on_perm x =
+  x |> S.of_rank |> S.on_perm
+
+module Sym_move_table = Lookup_table.Make2D (I) (Move.Fixed_move) (Move.Fixed_move)
+
+let on_move =
+  Sym_move_table.create all Move.Fixed_move.all ~f:(fun x m -> let s = S.of_rank x in S.on_move s m)
+  |> Sym_move_table.lookup
+
+

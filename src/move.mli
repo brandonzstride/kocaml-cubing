@@ -21,7 +21,7 @@ val equal : t -> t -> bool
 val ( * ) : t -> t -> t
 
 module Faceturn : sig
-  type t = U | R | F | D | B | L [@@deriving variants]
+  type t = U | R | F | D | B | L [@@deriving variants, sexp]
 
   val to_move : t -> T.t
 end
@@ -30,7 +30,7 @@ end
 (* We do not allow count to be zero in `all` or in `to_rank` *)
 module Fixed_move : 
   sig
-    type t = { faceturn : Faceturn.t ; count : Modular_int.Z4.t }
+    type t = { faceturn : Faceturn.t ; count : Modular_int.Z4.t } [@@deriving sexp]
     val all : t list (* all non-identity moves *)
     val n : int (* number of possible moves -- length of `all` -- number of non-identity moves *)
     val to_rank : t -> int (* not defined on count = 0 *)

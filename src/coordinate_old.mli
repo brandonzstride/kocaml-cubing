@@ -132,21 +132,22 @@ module Make (Sym : Symmetry.S) :
     module type Memo_params =
       sig
         (*
-          `Is_already_saved   => can just read the results from the files.
-          `Computation_needed => must compute the results and then save to files.
+          `Is_saved          => can just read the results from the files.
+          `Needs_computation => must compute results and then save to files.   
         *)
-        val status : [> `Is_already_saved | `Computation_needed]
-        (* absolute string filepath to where the move table is saved *)
-        val move_save_location : string 
-        (* absolute string filepath to where the symmetry table is saved *)
-        val symmetry_save_location : string 
+        val status : [> `Is_saved | `Needs_computation ]
+        (* the absolute filepath to where the move table is saved *)
+        val move_filepath : string
+        (* the absolute filepath to where the symmetry table is saved *)
+        val symmetry_filepath : string
       end
 
     module type Sym_memo_params =
       sig
-        include Memo_params (* symmetry_save_location not actually needed *)
-        val class_to_rep_location : string
-        val rep_to_class_location : string
+        val status : [> `Is_saved | `Needs_computation ]
+        val move_filepath : string
+        val class_to_rep_filepath : string
+        val rep_to_class_filepath : string
       end
 
     (*

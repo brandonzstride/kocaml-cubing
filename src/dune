@@ -2,7 +2,9 @@
   (name modular_int)
   (modules modular_int)
   (libraries
-    core))
+    core)
+  (preprocess
+  (pps ppx_jane)))
 
 (library
   (name lookup_table)
@@ -44,24 +46,25 @@
   (libraries
     move
     perm
-    cubie)
-  (preprocess
-    (pps ppx_jane)))
-
-(library
-  (name coordinate)
-  (modules coordinate)
-  (libraries
-    perm
-    move
-    symmetry
+    cubie
     lookup_table)
   (preprocess
     (pps ppx_jane)))
 
+; (library
+;   (name coordinate)
+;   (modules coordinate)
+;   (libraries
+;     perm
+;     move
+;     symmetry
+;     lookup_table)
+;   (preprocess
+;     (pps ppx_jane)))
+
 (library
-  (name coordinate2)
-  (modules coordinate2)
+  (name coordinate)
+  (modules coordinate)
   (libraries
     perm
     move

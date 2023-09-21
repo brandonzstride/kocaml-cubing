@@ -3,7 +3,7 @@ open Core
 (* Define a cyclic group of some size *)
 
 module type S = sig
-  type t 
+  type t [@@deriving sexp]
   val ( + ) : t -> t -> t
   val ( * ) : t -> t -> t
   val inverse : t -> t
@@ -22,7 +22,7 @@ end
 module Make (G : sig
     val n : int
   end) : S = struct
-  type t = int 
+  type t = int [@@deriving sexp]
 
   let n = if G.n > 0 then G.n else failwith "invalid size for cyclic group"
 

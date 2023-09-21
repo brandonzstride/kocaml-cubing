@@ -1,5 +1,5 @@
 module type S = sig
-  type t 
+  type t [@@deriving sexp]
   val ( + ) : t -> t -> t
   val ( * ) : t -> t -> t
   val inverse : t -> t

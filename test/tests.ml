@@ -1,8 +1,11 @@
 open Core
 open OUnit2
 
-[@@@ocaml.warning "-27"]
-[@@@ocaml.warning "-26"]
+(*
+  ----------
+  TEST MOVES   
+  ----------
+*)
 
 (*
   For this test, I generated a random sequence of moves, applied them to my physical
@@ -12,7 +15,7 @@ open OUnit2
   Since one mistake when making the moves really blows up in your face, I assume that if
   this test passes, then the moves are all working properly.
 *)
-let test_move_sequence _ = 
+let test_move_sequence = "move sequence" >:: (fun _ ->
   let open Cubie in
   let open Move.Faceturn in
   let open Move.Fixed_move in
@@ -27,29 +30,58 @@ let test_move_sequence _ =
   assert_equal (Perm.to_corners_list p)        (corner_list [(URF, 2); (DLF, 0); (DFR, 1); (UBR, 0); (ULB, 1); (DBL, 1); (UFL, 0); (DRB, 1)]);
   assert_equal (Perm.to_ud_slice_edges_list p) (edge_list   [(UR, 0); (BL, 1); (BR, 1); (UF, 1)]);
   assert_equal (Perm.to_ud_edges_list p)       (edge_list   [(UL, 1); (DL, 0); (UB, 1); (DF, 1); (FL, 0); (DR, 0); (DB, 1); (FR, 1)])
+  )
 
-(* Iterates through all possible coordinates and asserts that each is uniquely calculated *)
-let test_coordinate_inverses (module Raw_coord : Coordinate.Raw) =
+
+(*
+  ----------------
+  TEST COORDINATES   
+  ----------------
+
+  There are a few ways that coordinates need to be tested.
+
+  I should start with some known permutations and hand-calculate the coordinates
+  I expect them to have. This will be time-consuming, but it's necessary to assert
+  that I wrote the coordinates correctly.
+  
+  I need to assert
+  that every coordinate has to_perm and of_perm as inverses.
+    i.e. x |> to_perm |> of_perm => x
+  
+  I also need to check that if I apply a sequence of moves to some perm, and
+  I apply the same sequence to its coordinate and then convert back to perm, 
+  that the resulting perms are equivalent. I can start with a random coord
+  to do this because I know that coords appropriately generate permutations 
+  from the tests above.
+
+  Further, I need to assert that memoization works; it should not affect behavior
+  at all. I should be able to assert that any function behaves exactly the same as
+  it did before it was memoized.
+*)
+
+let test_inverses (module T : Coordinate.T) _ =
+  (* T has compare, so assert_equal will work *)
   let verify_inverse x =
-    assert_equal (Raw_coord.to_rank x) (x |> Raw_coord.to_perm |> Raw_coord.of_perm |> Raw_coord.to_rank)
+    assert_equal x (x |> T.to_perm |> T.of_perm)
   in
   let rec loop = function
   | None -> ()
-  | Some x -> verify_inverse x; loop @@ Raw_coord.next x
+  | Some x -> verify_inverse x; loop @@ T.next x
   in
-  loop (Some Raw_coord.zero)
+  loop (Some T.zero)
 
-let test_perm_coord_inverses _ =
-  let open Coordinate.Phase2 in
-  test_coordinate_inverses (module Edge_perm);
-  test_coordinate_inverses (module Corner_perm_raw);
-  test_coordinate_inverses (module UD_slice_perm)
 
-let test_ori_coord_inverses _ =
-  let open Coordinate.Phase1 in
-  test_coordinate_inverses (module Twist);
-  test_coordinate_inverses (module Flip)
-  
+let test_raw_perm_coord_inverses = "raw perm coord inverses" >::: [
+    "edge" >:: test_inverses (module Coordinate.Edge_perm.Raw);
+    "corner" >:: test_inverses (module Coordinate.Corner_perm.Raw);
+    "UD slice" >:: test_inverses (module Coordinate.UD_slice_perm.Raw);
+  ]
+
+let test_raw_ori_coord_inverses = "raw ori coord inverses" >::: [
+    "twist" >:: test_inverses (module Coordinate.Twist.Raw);
+    "flip" >:: test_inverses (module Coordinate.Flip.Raw);
+  ]
+(*   
 (* this is for saving memoized results in the test folder *)
 module M (F : sig val filename : string end) : Coordinate.Memoization =
   struct
@@ -69,13 +101,12 @@ let test_memoized_coordinates_inverses _ =
 ;; 
 
 print_endline (Core_unix.getcwd ())
-;;
+;; *)
 
-let cube_tests = "cube tests" >: test_list [
-  "move sequence" >:: test_move_sequence;
-  "perm coord inverses" >:: test_perm_coord_inverses;
-  "ori coord inverses" >:: test_ori_coord_inverses;
-  "memoized coord inverses" >:: test_memoized_coordinates_inverses;
+let cube_tests = "cube tests" >::: [
+  test_move_sequence;
+  test_raw_perm_coord_inverses;
+  test_raw_ori_coord_inverses;
 ]
 
 let series = "series" >::: [
