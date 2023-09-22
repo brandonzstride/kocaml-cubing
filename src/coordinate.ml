@@ -49,6 +49,7 @@ let rec sum_of_digits ~base = function
 
 let rec fac = function
   | 0 -> 1
+  | n when n < 0 -> failwith "factorial not defined on negative numbers"
   | n -> n * fac (n - 1)
 
 (* assume that n! won't exceed int max and 0 <= r <= n *)
@@ -93,18 +94,22 @@ module Make_memoized_coordinate (T : T) (M : Memo_params) : T =
       match M.status with
       | `Is_saved -> Move_table.from_file M.move_filepath
       | `Needs_computation ->
+        let time = Caml_unix.gettimeofday () in
         let f = fun x m -> T.perform_fixed_move x m |> T.to_rank in
         let tbl = Move_table.create (T.all ()) Move.Fixed_move.all ~f:f in
-        Move_table.to_file tbl M.move_filepath;
+        (* Move_table.to_file tbl M.move_filepath; *)
+        Printf.printf "Computed move table of size %d in time %fs\n" (T.n * Move.Fixed_move.n) (Caml_unix.gettimeofday() -. time);
         tbl
 
     let sym_table =
       match M.status with
       | `Is_saved -> Symmetry_table.from_file M.symmetry_filepath
       | `Needs_computation ->
+        let time = Caml_unix.gettimeofday () in
         let f = fun x s -> T.perform_symmetry x s |> T.to_rank in
         let tbl = Symmetry_table.create (T.all ()) Symmetry.all ~f:f in
-        Symmetry_table.to_file tbl M.symmetry_filepath;
+        (* Symmetry_table.to_file tbl M.symmetry_filepath; *)
+        Printf.printf "Computed symmetry table of size %d in time %fs\n" (T.n * Symmetry.n) (Caml_unix.gettimeofday() -. time);
         tbl
 
     (* these don't get called much, and memoizing would take too much space *)

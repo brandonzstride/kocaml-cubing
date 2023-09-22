@@ -7,4 +7,6 @@
   move
   perm
   cubie
-  core_unix))
+  core_unix)
+  (preprocess
+  (pps ppx_jane)))
