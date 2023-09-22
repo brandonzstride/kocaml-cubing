@@ -8,6 +8,9 @@
 *.cmxs
 *.cmxa
 
+# memoized results
+*.sexp
+
 # ocamlbuild working directory
 _build/
 
