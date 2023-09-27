@@ -35,3 +35,9 @@ let to_ud_edges_list (p : t) : Cubie.Edge.t list =
 
 let to_ud_slice_edges_list (p : t) : Cubie.Edge.t list =
   map_edges p Cubie.Edge.all_ud_slice_edges
+
+let pp (p : t) =
+  let pp c = Cubie.pp c ^ " -> " ^ Cubie.pp (p c) in
+  Cubie.all
+  |> List.map ~f:pp
+  |> List.fold ~init:"" ~f:(fun accum s -> accum ^ "\n" ^ s)

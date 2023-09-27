@@ -394,7 +394,7 @@ module Make (I : Int_coord_raw) : Coordinate =
         include I
         type t = int [@@deriving sexp, compare]
         let to_rank = Fn.id
-        let of_rank = Fn.id
+        let of_rank x = assert (x < n); x
         let zero = 0
         let next x = if x = n - 1 then None else Some (x + 1)
         let all () = List.init n ~f:Fn.id
@@ -589,23 +589,25 @@ module UD_slice = Make (
     let to_perm (x : int) : Perm.t =
       let open Cubie in
       let is_filled x i k = x < ncr i k in
-      let ud_slice = List.map Edge.all_ud_slice_edges ~f:(fun e -> Edge e) in
-      let ud_edge  = List.map Edge.all_ud_edges ~f:(fun e -> Edge e) in
       let rec go x i k = function
       | _ when k < 0 -> fun x -> x (* all ud slice found, just leave the rest in place *)
-      | [] -> fun x -> x (* logically impossible *)
+      | [] -> failwith "logically impossible if cube is well-formed"
       | hd :: tl when is_filled x i k -> begin function
-        | Edge e when Edge.compare hd e = 0 -> List.nth_exn ud_slice k
+        | Edge e when Edge_facelet.compare hd e.e = 0 ->
+            let new_e = List.nth_exn Edge_facelet.all_ud_slice_edges k in
+            Edge { e = new_e ; o = e.o } (* keep orientation the same *)
         | e -> go x (i - 1) (k - 1) tl e
         end
       | hd :: tl -> begin function (* this space is not filled with ud_slice edge *) 
-        | Edge e when Edge.compare hd e = 0 -> List.nth_exn ud_edge (i - k - 1) (* fill with non-ud-slice edge *)
+        | Edge e when Edge_facelet.compare hd e.e = 0 ->
+          let new_e = List.nth_exn Edge_facelet.all_ud_edges (i - k - 1) in (* fill with non-ud-slice edge *)
+          Edge { e = new_e ; o = e.o } (* keep orientation the same *)
         | e -> go (x - ncr i k) (i - 1) k tl e
         end
       in
       function (* return type is function *)
       | Corner _ as c -> c (* leave corners untouched *)
-      | Edge   _ as e -> go x 11 3 (List.rev Edge.all) e
+      | Edge   _ as e -> go x 11 3 (List.rev Edge_facelet.all) e
 
   end
 ) 
@@ -642,6 +644,12 @@ module Flip_UD_slice = Make (
       end
 
     let n = UD_slice.Raw.n * Flip.Raw.n
+
+    (* 200000 => flip = 1344 ud_slice = 97 seems to fail to_perm.*)
+    (* seems like Move( * ) is wrong because mult of these too doesn't work. *)
+    (* I think issue will arrises from how I compare on edge when I should compare on facelet *)
+    (* I'm getting that it doesn't match any case, so then just goes to id. Better
+       is to failwith on logical impossibilities.*)
     
     (*
       `Flip.to_perm` preserves permutation but changes orientation,
@@ -736,6 +744,7 @@ module Perm_coord (C : sig val all : Cubie.t list end) = Make (
       i! to get exactly the rank that concerns us.
       Then for next step, subract off this rank * i!, and repeat.
     *)
+    (* TODO: keep orientations the same *)
     let to_perm (x : int) : Perm.t =
       let rm x = List.filter ~f:(fun a -> cubie_compare x a <> 0) in
       (* 
@@ -744,10 +753,10 @@ module Perm_coord (C : sig val all : Cubie.t list end) = Make (
       *)
       let rec go x i possible_mappings = function
       | [] -> Fn.id (* leave all remaining cubies in place *)
-      | hd :: tl -> let this_cubie = List.nth_exn possible_mappings (x / fac i) in
+      | hd :: tl -> let this_mapping = List.nth_exn possible_mappings (x / fac i) in
         begin function
-        | c when cubie_compare hd c = 0 -> this_cubie
-        | c -> c |> go (x mod fac i) (i - 1) (rm this_cubie possible_mappings) tl
+        | c when cubie_compare hd c = 0 -> this_mapping
+        | c -> c |> go (x mod fac i) (i - 1) (rm this_mapping possible_mappings) tl
         end
       in go x (k - 1) all_rev all_rev
   end

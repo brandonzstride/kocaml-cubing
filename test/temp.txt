@@ -1,0 +1,22 @@
+original:
+100101101100 is inverted properly
+on f:
+100100101000 is inverted properly
+of f in coord:
+110101100100
+
+so UF accidentally gets flip
+Df should be flipped but doesn't
+FR accidentally gets flip
+FL should get flipped but doesn't get flipped
+
+I checked that when I do of and to perm, then move, then of and to perm again,
+it's same as from move on coord.
+
+So it might have to do with the order of ops and 
+
+Issue seems to be that what gets flipped depends on where the piece is coming
+from. I'm not sure how I can invert the correct cubies without knowing where
+they are coming from. Maybe I have to do it first. But this goes against order
+of ops. But in a cubie if I apply all the static stuff first (e.g. flipping some)
+things, they'll come out flipped correctly.

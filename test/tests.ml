@@ -1,11 +1,55 @@
 open Core
 open OUnit2
 
+[@@@ocaml.warning "-26"]
+[@@@ocaml.warning "-32"]
+
 (*
   -----
   SETUP   
   -----
 *)
+
+(*
+  -----------
+  COORDINATES   
+  -----------
+
+  Most of my tests here will be about coordinates. I need to be sure that
+  they are calculated and inverted correctly, and that they work well under
+  moves. However, cubes have to be formed a certain way for them to work.
+  I may get errors resulting from logical impossibilities if the input cube
+  is malformed or not in the correct phase.
+
+  E.g. the UD slice perm coord is not defined on a cube that is not in G1.
+
+  I therefore split up the coordinates into Phase1 and Phase2 here. I could
+  do this in coordinates, but I prefer to avoid that nesting. I may change
+  my mind on this later, and it will be a simple change.
+*)
+
+module C = Coordinate
+
+module Ref_module =
+  struct
+    type t =
+      { m : (module C.T) ref
+      ; name : string }
+  end
+
+(* I use reference cells to hold modules. *)
+let raw_phase1 = let open Ref_module in [
+  { m = ref (module C.Twist.Raw : C.T)         ; name = "twist raw"         };
+  { m = ref (module C.Flip.Raw : C.T)          ; name = "flip raw"          };
+  { m = ref (module C.UD_slice.Raw : C.T)      ; name = "ud slice raw"      };
+  { m = ref (module C.Flip_UD_slice.Raw : C.T) ; name = "flip ud slice raw" };
+]
+
+let raw_phase2 = let open Ref_module in [
+  { m = ref (module C.Corner_perm.Raw : C.T)   ; name = "corner perm raw"   };
+  { m = ref (module C.Edge_perm.Raw : C.T)     ; name = "edge perm raw"     };
+  { m = ref (module C.UD_slice_perm.Raw : C.T) ; name = "ud slice perm raw" };
+]
 
 (* module Config =
   struct
@@ -108,88 +152,91 @@ let test_move_sequence = "move sequence" >:: (fun _ ->
   it did before it was memoized.
 *)
 
+let make_test test_fun test_name (m : Ref_module.t) =
+  (m.name ^ " " ^ test_name) >:: test_fun (m.m.contents)
+
+let test_all tests ls_name (ls : Ref_module.t list) =
+  ls_name >::: (List.map2_exn tests ls ~f:(fun test m -> test m))
+
+let test_all1 test ls_name ls =
+  test_all (List.init (List.length ls) ~f:(Fn.const test)) ls_name ls
+
 let test_coord_equal x p (module T : Coordinate.T) _ =
   assert_equal x (p |> T.of_perm |> T.to_rank)
 
-let test_corner_coords = 
-  let p = perm_of_corner_list [(DFR, 2); (UFL, 0); (ULB, 1); (URF, 2); (DRB, 2); (DLF, 0); (DBL, 0); (UBR, 2)] in
-  "test corner_coords" >::: [
-    "twist id" >:: test_coord_equal 0 Fn.id (module Coordinate.Twist.Raw);
-    "test twist" >:: test_coord_equal 1611 p (module Coordinate.Twist.Raw);
-    "perm id" >:: test_coord_equal 0 Fn.id (module Coordinate.Corner_perm.Raw);
-    "test perm" >:: test_coord_equal 21021 p (module Coordinate.Corner_perm.Raw);
-  ]
-
-let test_phase1_edge_coords =
-  let p = perm_of_edge_list [(UL, 1); (UF, 1); (DF, 0); (FL, 0); (DR, 0); (BL, 1);
-                             (DL, 1); (UR, 0); (BR, 1); (DB, 0); (UB, 0); (FR, 1)] in
-  "test phase1 edge coords" >::: [
-    "flip id" >:: test_coord_equal 0 Fn.id (module Coordinate.Flip.Raw);
-    "test flip" >:: test_coord_equal 1588 p (module Coordinate.Flip.Raw);
-    "ud slice id" >:: test_coord_equal 0 Fn.id (module Coordinate.UD_slice.Raw);
-    "test ud slice" >:: test_coord_equal 95 p (module Coordinate.UD_slice.Raw);
-    "flip ud slice id" >:: test_coord_equal 0 Fn.id (module Coordinate.Flip_UD_slice.Raw);
-    "test flip ud slice id" >:: test_coord_equal 196148 p (module Coordinate.Flip_UD_slice.Raw);
+let test_coord_of_perm =
+  let p_c = perm_of_corner_list [(DFR, 2); (UFL, 0); (ULB, 1); (URF, 2); (DRB, 2); (DLF, 0); (DBL, 0); (UBR, 2)] in
+  let arb_test x p = make_test (test_coord_equal x p) "arbitrary_coord" in
+  let id_test = make_test (test_coord_equal 0 Fn.id) "id" in
+  let p_e = perm_of_edge_list [(UL, 1); (UF, 1); (DF, 0); (FL, 0); (DR, 0); (BL, 1);
+                               (DL, 1); (UR, 0); (BR, 1); (DB, 0); (UB, 0); (FR, 1)] in
+  "test coord of perm" >::: [
+    test_all [arb_test 1611 p_c; arb_test 1588 p_e; arb_test 95 p_e; arb_test 196148 p_e] "raw phase 1" raw_phase1;
+    test_all [arb_test 21021 p_c] "raw phase 2" [List.hd_exn raw_phase2];
+    test_all1 id_test "raw phase 1" raw_phase1;
+    id_test (List.hd_exn raw_phase2);
   ]
 
 (* I will naively assume for now that since the corner permutation works,
    and since the phase2 edge coordinates are permutations using the same
    framework, then the phase2 edge coordinates work as well. *)
 
-let test_counts (module T : Coordinate.T) _ =
-  let rec loop i = function
-  | None -> i
-  | Some x -> loop (i + 1) (T.next x)
-  in
-  assert_equal (loop 0 (Some T.zero)) T.n
-
-let test_counts = "raw coord counts" >::: [
-  "twist"         >:: test_counts (module Coordinate.Twist.Raw);
-  "flip"          >:: test_counts (module Coordinate.Flip.Raw);
-  "UD slice"      >:: test_counts (module Coordinate.UD_slice.Raw);
-  "flip UD slice" >:: test_counts (module Coordinate.Flip_UD_slice.Raw);
-  "edge perm"     >:: test_counts (module Coordinate.Edge_perm.Raw);
-  "corner perm"   >:: test_counts (module Coordinate.Corner_perm.Raw);
-  "UD slice perm" >:: test_counts (module Coordinate.UD_slice_perm.Raw);
-]
-
-let test_inverses (module T : Coordinate.T) _ =
-  (* T has compare, so assert_equal will work *)
-  let verify_inverse x =
-    assert_equal x (x |> T.to_perm |> T.of_perm)
-  in
-  let rec loop = function
-  | None -> ()
-  | Some x -> verify_inverse x; loop @@ T.next x
-  in
-  loop (Some T.zero)
-
-
-let test_raw_perm_coord_inverses = "raw perm coord inverses" >::: [
-    "edge" >:: test_inverses (module Coordinate.Edge_perm.Raw);
-    "corner" >:: test_inverses (module Coordinate.Corner_perm.Raw);
-    "UD slice" >:: test_inverses (module Coordinate.UD_slice_perm.Raw);
+let test_on_all f name =
+  name >::: [
+    test_all1 f "raw phase1" raw_phase1;
+    test_all1 f "raw_phase2" raw_phase2;
   ]
 
-let test_raw_ori_coord_inverses = "raw ori coord inverses" >::: [
-    "twist" >:: test_inverses (module Coordinate.Twist.Raw);
-    "flip" >:: test_inverses (module Coordinate.Flip.Raw);
-  ]
+(* Make sure each only has n total coordinates *)
+let test_counts = 
+  let f (module T : C.T) _ =
+    let rec loop i = function
+    | None -> i
+    | Some x -> loop (i + 1) (T.next x)
+    in
+    assert_equal (loop 0 (Some T.zero)) T.n
+  in
+  test_on_all (make_test f "raw coord counts") "raw coord counts"
 
-module M (F : sig val coord_name : string end) : Coordinate.Memo_params =
+(* Make sure that ranks are less than n *)
+let test_ranks =
+  let f (module T : C.T) _ =
+    let rec loop = function
+    | None -> ()
+    | Some x -> assert_equal true (T.to_rank x < T.n); loop (T.next x)
+    in
+    loop (Some T.zero)
+  in
+  test_on_all (make_test f "coord less than n") "coord less than n"
+
+(* Make sure that to_perm is the right inverse of of_perm *)
+let test_inverses =
+  let f (module T : C.T) _ =
+    let verify_inverse x =
+      assert_equal x (x |> T.to_perm |> T.of_perm)
+    in
+    let rec loop = function
+    | None -> ()
+    | Some x -> verify_inverse x; loop @@ T.next x
+    in
+    loop (Some T.zero)
+  in
+  test_on_all (make_test f "verify inverse") "verify_inverse"
+
+(* module M (F : sig val coord_name : string end) : Coordinate.Memo_params =
   struct
     let status = `Needs_computation
     let (^/) a b = a ^ "/" ^ b
-    let path = "C:/Users/brand/Documents/kocaml-cubing/test/lookup_tables/coordinates"
+    let path = "/mnt/c/Users/brand/Documents/kocaml-cubing/test/lookup_tabels/coordinates"
     let move_filepath = path ^/ "move" ^/ F.coord_name ^ "_move_table.sexp"
     let symmetry_filepath = path ^/ "sym" ^/ F.coord_name ^ "_sym_table.sexp"
-  end
+  end *)
 
-module M_twist = M (struct let coord_name = "twist" end)
+(* module M_twist = M (struct let coord_name = "twist" end)
 module M_edge_perm = M (struct let coord_name = "edge_perm" end)
 
 module Twist_memo = Coordinate.Twist.Make_memoized_coordinate (M_twist)
-module Edge_perm_memo = Coordinate.Edge_perm.Make_memoized_coordinate (M_edge_perm)
+module Edge_perm_memo = Coordinate.Edge_perm.Make_memoized_coordinate (M_edge_perm) *)
 
 let random_fixed_move _ =
   Move.Fixed_move.n
@@ -199,7 +246,8 @@ let random_fixed_move _ =
 let random_fixed_move_list _ =
   List.init 40 ~f:random_fixed_move
   
-
+(* flip seems to not be equal on F, B, F3, B3 *)
+(* Note that these are the moves the don't preserve orientation *)
 let test_coord_move_sequence = 
   let p = (* random starting permutation *)
     random_fixed_move_list ()
@@ -216,45 +264,23 @@ let test_coord_move_sequence =
     assert_equal (T.of_perm p') x' (* cannot compare perms because some cubies are not relevant to coord *)
   in
   "coord move sequences" >::: [
-    "twist memo" >:: test_module (module Twist_memo);
-    "edge perm memo" >:: test_module (module Edge_perm_memo);
-    "twist" >:: test_module (module Coordinate.Twist.Raw);
-    "edge perm" >:: test_module (module Coordinate.Edge_perm.Raw);
+    (* "twist memo" >:: test_module (module Twist_memo); *)
+    (* "edge perm memo" >:: test_module (module Edge_perm_memo); *)
+    (* "twist" >:: test_module (module Coordinate.Twist.Raw); *)
+    (* "edge perm" >:: test_module (module Coordinate.Edge_perm.Raw); *)
     "corner perm" >:: test_module (module Coordinate.Corner_perm.Raw);
+    "flip" >:: test_module (module Coordinate.Flip.Raw);
     (* "ud slice perm" >:: test_module (module Coordinate.UD_slice_perm.Raw); *)
     (* "ud slice" >:: test_module (module Coordinate.UD_slice.Raw); *)
     (* "flip ud slice" >:: test_module (module Coordinate.Flip_UD_slice.Raw); *)
 ]
 
-(*   
-(* this is for saving memoized results in the test folder *)
-module M (F : sig val filename : string end) : Coordinate.Memoization =
-  struct
-    let is_already_saved = false
-    let move_save_location = "./lookup_tables/coordinates/move/" ^ F.filename
-    let sym_save_location = "./lookup_tables/coordinates/sym/" ^ F.filename
-  end
-
-module M_twist  = M (struct let filename = "twist_test.sexp" end)
-module M_edge_perm = M (struct let filename = "edge_perm_test.sexp" end)
-
-let test_memoized_coordinates_inverses _ =
-  let open Coordinate.Phase1 in
-  let open Coordinate.Phase2 in
-  test_coordinate_inverses (module Coordinate.Memoize_raw (Twist) (M_twist));
-  test_coordinate_inverses (module Coordinate.Memoize_raw (Edge_perm) (M_edge_perm))
-;; 
-
-print_endline (Core_unix.getcwd ())
-;; *)
-
 let cube_tests = "cube tests" >::: [
-  test_corner_coords;
-  test_phase1_edge_coords;
+  test_coord_of_perm;
   test_counts;
+  test_ranks;
+  test_inverses;
   test_move_sequence;
-  test_raw_perm_coord_inverses;
-  test_raw_ori_coord_inverses;
   test_coord_move_sequence;
 ]
 
