@@ -167,6 +167,87 @@ module Generator =
         | DFR -> DLF | DLF -> DFR | DBL -> DRB | DRB -> DBL end
         in Cubie_with_function.Corner { c = c' ; f = Modular_int.Z3.inverse }
       end
+    
+    (*
+      I'd like to conjugate an arbitrary permutation with this function
+      for S_LR2.
+      This function is its own inverse, i.e. S_LR2^-1 = S_LR2   
+
+      So basically, for a permutation p, I need to find
+        S_LR2 * p * S_LR2
+
+      The edge part is trivial because orientations are unaffected. I am
+      only concerned with the corner part.
+      
+      This wouldn't be hard if I could decode p down to fixed moves and then
+      use hardcoded fixed move conjugations. But to do that is to solve p, which
+      is part of the problem at-hand.
+
+      So I need to work with p as if it's only a function on cubies. 
+      Let s := S_LR2
+      
+      s(c) = c', f(o) a function on the orientation
+      p(c') = c'', do a difference in the orientation
+      s(c'') = c''', f(o) a function on the orientation
+
+      I can feed through easily to find exactly which cubie goes where. This
+      is natural. But what about the orientation?
+
+      Let's break it down.
+      * This function f(o) is always the inverse function
+      * If the original orientation of the cubie c''' (which is what in the
+        end will replace c) is 0, then the final orientation of c is f(do).
+      * If it's 1, then f(1) = 2, so final is f(2 + do)
+        If do is 0, then final 1
+        1 -> 0
+        2 -> 2
+      * If it's 2, then f(2) = 1, so final is f(1 + do)
+        If do is 0, then final is 2
+        1 -> 1
+        2 -> 0
+      * It's trivial that the total function on the orientation is f(f(o) + do)
+        where o is the original orientation of c''', and do is the orientation
+        from the permutation.
+        do is completely arbitrary, so I don't think I can deduce anything from it
+        to simplify this more.
+        We see from the above deductions on do that we still depend on initial
+        orientation.
+      
+      * Can I ever assume that initial orientation is zero?
+        "Initial orientation" here means what?
+        It's a tough concept because the usage of these symmetries is really just
+        to conjugate a symmetry with a permutation and remeasure the coordinate.
+        We assume that the permutation is not a move but is rather an exact
+        definition of what exists in that cubie location and with what orientation.
+        Past that, we only apply move sequences to a permutation.
+        When this is done, however, the move sequence is applied "first" because of
+        the "is replaced by" notation, so to determine how a permutation ends up after
+        a move sequence, the permutation must ready to accept some non-zero orientation.
+        But this doesn't quite feel right. I need to think about this.
+
+      A symmetry coordinate needs to be converted to a perm by s * p * s^-1 where
+      p is the perm of the underlying raw representative coordinate.
+      When is this ever actually done? We most often just deal with fixed moves, and
+      it's already known how fixed moves are done on symmetries, so it's trivial to get
+      the resulting sym coord under a fixed move:
+        Convert to fixed move under symmetry, apply to coordinate (which is memoized),
+        and then convert back to sym coordinate.
+      
+      The perm will be needed when converting back to permutation after phase1, but not
+      really because we could just do the moves on the original permutation to get there,
+      which is very, very fast to do just for a short sequence of moves once.
+
+      Then I'm not seeing when we ever really need to perform a symmetry on a permutation
+      and *then* do something with that.
+      => so it's safe to say that the original thing passed in has orientation zero, and 
+      the result of `on_perm` won't ever be used in any multiplication. (did I consider
+      multiplication in Flip UD slice?)
+
+      For this reason, I can say that the final orientation is f(do) where do is the 
+      `o` in the Cubie.With_orientation.Corner.t part of the conjugation.
+      It will therefore be worth hardcoding the way that reflection behaves on a permutation
+      separately from the other symmetries; the others will be done with simple moves.
+    *)
   end
 
 module Multiples =
@@ -268,8 +349,38 @@ module S =
       *only* on the permutation, and from there apply the rest as moves.
 
       How does it act on a permutation? Well, if I can convert a permutation
-      to a function move (which to me seems possible, but my tests before the)
-      move refactor seem to suggest is not possible
+      to a function move (which to me seems possible, but my tests before the
+      move refactor seem to suggest is not possible), then I use only the
+      reflection...
+
+      Here's what needs to happen:
+      * I take in a cube permutation, which is definitely well-defined
+      * And I just convert that to a new permutation, which I know should be
+        well-defined.
+      * This is done by converting the symmetry to a function on the cubies
+        and composing as normal.
+      * This goes wrong when I have a reflection that is not defined so normally
+        because the function it generates changes orientations differently
+        than anything else.
+      * Potentially I can hard-code a function that is the reflection conjugating
+        any move. This will still work smoothly with the other symmetries because
+          ((non-reflection-parts) * (reflection-part))^-1
+          = (reflection-part)^-1 * (non-reflection-parts)^-1
+          = (reflection-part) * (non-reflection-parts)^-1
+        and this is totally ok because I only ever conjugate and need to return
+        a new permutation or a new move.
+      * When I need to return a new fixed move, I know the hard-coded reflection
+        move table, which gives a new fixed move, and then I apply the regular
+        code on the non-reflection part of the symmetry
+      * When I need to return a new permutation, then this is a little tougher.
+        The reflection needs an initial orientation of the cubies to tell the final
+        orientation. One reason this is difficult is that the user has no idea
+        what will soon replace the cubie, so when the symmetry says that it replaces
+        URF with UFL and inverses the orientation, the user needs to somehow tell the
+        symmetry what was the original orientation of UFL. This makes it a bit of a
+        two-step process. However, as the coder (and only user), I *do* know which
+        orientation to find because I'm behind the scenes of the function.
+        This is continued up by the to_move in Generator.
     *)
 
     let on_perm (s : t) (p : Perm.t) : Perm.t =
