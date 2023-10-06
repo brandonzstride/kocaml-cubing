@@ -14,5 +14,5 @@ TODO:
 * And probably lots more.
 
 Current status:
-* 6 Oct 2023 -- move_refactor branch is better but broker in another way. SEE THAT BRANCH!
+* 6 Oct 2023 -- move_refactor branch is better but broken in another way. SEE THAT BRANCH!
 * 26 Sep 2023 -- orientation coordinates fail under moves. I may refactor moves to not consider initial orientation, but I don't yet see how this solves the issue.
