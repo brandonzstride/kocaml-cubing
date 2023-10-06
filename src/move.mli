@@ -10,7 +10,7 @@ A move will map every cubie on the cube to some other cubie with new orientation
 
 module T :
   sig
-    type t = Cubie.t -> Cubie_with_orientation.t
+    type t = Cubie.t -> Cubie.With_orientation.t
   end
 
 type t = T.t
