@@ -4,7 +4,7 @@ An OCaml implementation of the Kociemba Two-Phase algorithm.
 IMPORTANT: This project is a work in progress. It is far from complete at the moment. Please do not expect it to do anything meaningful for the time being.
 
 TODO:
-* Fix coordinate behavior under moves.
+* Fix reflection symmetry's behavior on corner orientation.
 * Verify symmetry coordinates are consistent.
 * Implement A*.
 * Implement pruning tables.
@@ -13,8 +13,6 @@ TODO:
 * Use config for table locations and setup state.
 * And probably lots more.
 
-move_refactor branch:
-* Need to make it so that a move only takes a cubie and returns cubie with an orientation.
-
 Current status:
+* 6 Oct 2023 -- all raw coordinates work completely under move sequences starting from random permutations. However, the reflection symmetry is broken.
 * 26 Sep 2023 -- orientation coordinates fail under moves. I may refactor moves to not consider initial orientation, but I don't yet see how this solves the issue.
