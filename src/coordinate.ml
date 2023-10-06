@@ -411,9 +411,9 @@ module Make (I : Int_coord_raw) : Coordinate =
           |> Symmetry.on_perm s
           |> I.of_perm
       end
-    module Make_memoized_coordinate = Make_memoized_coordinate (Raw)
+    module Make_memoized_coordinate = functor (M : Memo_params) -> Make_memoized_coordinate (Raw) (M)
     module S = Sym_base_of_raw (Raw)
-    module Make_symmetry_coordinate = Make_symmetry_coordinate (S)
+    module Make_symmetry_coordinate = functor (M : Sym_memo_params) -> Make_symmetry_coordinate (S) (M)
   end
 
 (*

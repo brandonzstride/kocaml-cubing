@@ -36,7 +36,11 @@ module Fixed_move :
   sig
     type t = { faceturn : Faceturn.t ; count : Modular_int.Z4.t } [@@deriving sexp]
     val all : t list (* all non-identity moves *)
+    val all_g1 : t list (* all non-identity moves that generate g1 *)
     val n : int (* number of possible moves -- length of `all` -- number of non-identity moves *)
     val to_rank : t -> int (* not defined on count = 0 *)
     val to_move : t -> T.t
+
+    val random_list : int -> t list
+    val random_g1_list : int -> t list
   end

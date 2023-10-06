@@ -115,6 +115,14 @@ module Fixed_move =
     (* all defined by enumerate *)
     let all = all |> List.filter ~f:(fun x -> Modular_int.Z4.compare x.count Modular_int.Z4.zero <> 0)
 
+    (* g1 is any turn of U or D, and double turns of other faces *)
+    let is_g1 = function
+    | { faceturn = U ; count = _ } | {faceturn = D ; count = _ } -> true
+    | { faceturn = _ ; count = z } when Modular_int.Z4.to_int z mod 2 = 0 -> true
+    | _ -> false
+
+    let all_g1 = all |> List.filter ~f:is_g1
+
     let n = List.length all
     
     let to_move { faceturn ; count } =
@@ -124,4 +132,17 @@ module Fixed_move =
       | 1 -> m
       | 2 -> m * m
       | _ -> m * m * m
+
+    let random ls _ =
+      ls
+      |> List.length
+      |> Random.int 
+      |> List.nth_exn ls
+
+    let random_list n =
+      List.init n ~f:(random all)
+
+    let random_g1_list n =
+      List.init n ~f:(random all_g1)
+
   end

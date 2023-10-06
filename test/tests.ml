@@ -81,24 +81,26 @@ Config.save config *)
 *)
 
 let perm_of_edge_list ls =
+  let open Cubie in
   let x = 
   ls
-  |> List.map ~f:(fun (e, o) -> Cubie.Edge Cubie.Edge.{ e ; o = Modular_int.Z2.of_int o })
+  |> List.map ~f:(fun (e, o) -> With_orientation.Edge With_orientation.Edge.{ e ; o = Modular_int.Z2.of_int o })
   |> List.zip_exn Cubie.Edge.all
   in
   function
-  | Cubie.Corner _ as c -> c
-  | Cubie.Edge e -> List.find_exn x ~f:(fun (a, _) -> Cubie.Edge.compare e a = 0) |> Tuple2.get2
+  | Corner _ as c -> Move.id c
+  | Edge e -> List.find_exn x ~f:(fun (a, _) -> Edge.compare e a = 0) |> Tuple2.get2
 
 let perm_of_corner_list ls =
+  let open Cubie in
   let x = 
   ls
-  |> List.map ~f:(fun (c, o) -> Cubie.Corner Cubie.Corner.{ c ; o = Modular_int.Z3.of_int o })
+  |> List.map ~f:(fun (c, o) -> With_orientation.Corner With_orientation.Corner.{ c ; o = Modular_int.Z3.of_int o })
   |> List.zip_exn Cubie.Corner.all
   in
   function
-  | Cubie.Edge _ as e -> e
-  | Cubie.Corner c -> List.find_exn x ~f:(fun (a, _) -> Cubie.Corner.compare c a = 0) |> Tuple2.get2
+  | Edge _ as e -> Move.id e
+  | Corner c -> List.find_exn x ~f:(fun (a, _) -> Corner.compare c a = 0) |> Tuple2.get2
 
 (*
   For this test, I generated a random sequence of moves, applied them to my physical
@@ -112,8 +114,8 @@ let test_move_sequence = "move sequence" >:: (fun _ ->
   let open Cubie in
   let open Move.Faceturn in
   let open Move.Fixed_move in
-  let corner_list = List.map ~f:(fun (a, b) -> Corner.{ c = a ; o = Modular_int.Z3.of_int b}) in
-  let edge_list   = List.map ~f:(fun (a, b) ->   Edge.{ e = a ; o = Modular_int.Z2.of_int b}) in
+  let corner_list = List.map ~f:(fun (a, b) -> With_orientation.Corner.{ c = a ; o = Modular_int.Z3.of_int b}) in
+  let edge_list   = List.map ~f:(fun (a, b) ->   With_orientation.Edge.{ e = a ; o = Modular_int.Z2.of_int b}) in
   let p = [(B, 2); (D, 3); (B, 1); (L, 2); (B, 2); (D, 1); (U, 3); (F, 3); (B, 2);
            (U, 2); (D, 2); (R, 2); (B, 1); (R, 3); (L, 1); (F, 3); (R, 3); (B, 1);
            (D, 3); (F, 2); (L, 1); (R, 1); (F, 1); (U, 2); (B, 2)]
@@ -167,12 +169,12 @@ let test_coord_equal x p (module T : Coordinate.T) _ =
 let test_coord_of_perm =
   let p_c = perm_of_corner_list [(DFR, 2); (UFL, 0); (ULB, 1); (URF, 2); (DRB, 2); (DLF, 0); (DBL, 0); (UBR, 2)] in
   let arb_test x p = make_test (test_coord_equal x p) "arbitrary_coord" in
-  let id_test = make_test (test_coord_equal 0 Fn.id) "id" in
+  let id_test = make_test (test_coord_equal 0 Move.id) "id" in
   let p_e = perm_of_edge_list [(UL, 1); (UF, 1); (DF, 0); (FL, 0); (DR, 0); (BL, 1);
                                (DL, 1); (UR, 0); (BR, 1); (DB, 0); (UB, 0); (FR, 1)] in
   "test coord of perm" >::: [
     test_all [arb_test 1611 p_c; arb_test 1588 p_e; arb_test 95 p_e; arb_test 196148 p_e] "raw phase 1" raw_phase1;
-    test_all [arb_test 21021 p_c] "raw phase 2" [List.hd_exn raw_phase2];
+    test_all [arb_test 21021 p_c] "raw phase 2" [List.hd_exn raw_phase2]; (* assume that if corner works, then the others do too *)
     test_all1 id_test "raw phase 1" raw_phase1;
     id_test (List.hd_exn raw_phase2);
   ]
@@ -238,42 +240,49 @@ module M_edge_perm = M (struct let coord_name = "edge_perm" end)
 module Twist_memo = Coordinate.Twist.Make_memoized_coordinate (M_twist)
 module Edge_perm_memo = Coordinate.Edge_perm.Make_memoized_coordinate (M_edge_perm) *)
 
-let random_fixed_move _ =
-  Move.Fixed_move.n
-  |> Random.int 
-  |> List.nth_exn Move.Fixed_move.all
+(**
+  Tests that coordinates are well-defined under move sequences.
+  i.e. checks that from a random starting permutation, moves on coordinates
+  are identical to moves on the cube.
+  i.e. the coordinate of the cube after all the moves is the same as the
+  resulting coordinate after moves only done on coordinate.
+*)
 
-let random_fixed_move_list _ =
-  List.init 40 ~f:random_fixed_move
-  
-(* flip seems to not be equal on F, B, F3, B3 *)
-(* Note that these are the moves the don't preserve orientation *)
-let test_coord_move_sequence = 
-  let p = (* random starting permutation *)
-    random_fixed_move_list ()
-    |> List.map ~f:Move.Fixed_move.to_move
-    |> Perm.of_move_list
-  in
-  let move_list = random_fixed_move_list () in
-  let p' = 
-    move_list
-    |> List.fold ~init:p ~f:(fun p m -> m |> Move.Fixed_move.to_move |> Perm.perform_move p)
-  in
-  let test_module (module T : Coordinate.T) _ =
-    let x' = List.fold move_list ~init:(T.of_perm p) ~f:T.perform_fixed_move in
+let test_coord_move_sequence n_trials n_moves move_list_generator (module T : Coordinate.T) _ =
+  let test_module _ =
+    let p = move_list_generator n_moves |> Perm.perform_fixed_move_list Perm.identity in (* random starting permutation *)
+    let move_list = move_list_generator n_moves in (* moves to apply to permutation *)
+    let p' = Perm.perform_fixed_move_list p move_list in (* resulting perm from the moves *actually applied to the cube* *)
+    let x' = List.fold move_list ~init:(T.of_perm p) ~f:T.perform_fixed_move in (* resulting coord of the moves *only applied to the coordinate* *)
     assert_equal (T.of_perm p') x' (* cannot compare perms because some cubies are not relevant to coord *)
   in
-  "coord move sequences" >::: [
-    (* "twist memo" >:: test_module (module Twist_memo); *)
-    (* "edge perm memo" >:: test_module (module Edge_perm_memo); *)
-    (* "twist" >:: test_module (module Coordinate.Twist.Raw); *)
-    (* "edge perm" >:: test_module (module Coordinate.Edge_perm.Raw); *)
-    "corner perm" >:: test_module (module Coordinate.Corner_perm.Raw);
-    "flip" >:: test_module (module Coordinate.Flip.Raw);
-    (* "ud slice perm" >:: test_module (module Coordinate.UD_slice_perm.Raw); *)
-    (* "ud slice" >:: test_module (module Coordinate.UD_slice.Raw); *)
-    (* "flip ud slice" >:: test_module (module Coordinate.Flip_UD_slice.Raw); *)
-]
+  Fn.apply_n_times ~n:n_trials test_module ()
+
+(*
+  Use move sequences of 40 moves, 10 times
+
+  If there is one move that fails on a coordinate, then (roughly, because it
+  could be canceled by an adjacent move) there is a ((17/18)^40)^10 ~=~ 10^-10
+  chance of that move not getting hit. I'll take my chances and assume that this
+  test is sufficient.     
+*)
+let test_coord_move_sequence_phase1 = test_coord_move_sequence 10 40 Move.Fixed_move.random_list
+let test_coord_move_sequence_phase2 = test_coord_move_sequence 10 40 Move.Fixed_move.random_g1_list
+
+let test_raw_phase1_coord_move_sequence =
+  "raw phase1 coord move sequences" >::: [
+    "twist"         >:: test_coord_move_sequence_phase1 (module C.Twist.Raw);
+    "flip"          >:: test_coord_move_sequence_phase1 (module C.Flip.Raw);
+    "ud slice"      >:: test_coord_move_sequence_phase1 (module C.UD_slice.Raw);
+    "flip ud slice" >:: test_coord_move_sequence_phase1 (module C.Flip_UD_slice.Raw);
+  ]
+
+let test_raw_phase2_coord_move_sequence =
+  "raw phase2 coord move sequences" >::: [
+    "edge perm"     >:: test_coord_move_sequence_phase2 (module C.Edge_perm.Raw);
+    "ud slice perm" >:: test_coord_move_sequence_phase2 (module C.UD_slice_perm.Raw);
+    "corner perm"   >:: test_coord_move_sequence_phase2 (module C.Corner_perm.Raw);
+  ]
 
 let cube_tests = "cube tests" >::: [
   test_coord_of_perm;
@@ -281,7 +290,8 @@ let cube_tests = "cube tests" >::: [
   test_ranks;
   test_inverses;
   test_move_sequence;
-  test_coord_move_sequence;
+  test_raw_phase1_coord_move_sequence;
+  test_raw_phase2_coord_move_sequence;
 ]
 
 let series = "series" >::: [

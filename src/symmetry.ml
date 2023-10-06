@@ -60,15 +60,10 @@ module Generator =
         let c' = begin match c with
         | URF -> UFL | UFL -> URF | UBR -> ULB | ULB -> UBR
         | DFR -> DLF | DLF -> DFR | DBL -> DRB | DRB -> DBL end
-        in
         (* TODO: Actually needs to consider intial orientation to know how final is affected *)
         (* Old code in temp.ml for now *)
-        let f_o x =
-          x
-          |> Modular_int.Z3.to_int
-          |> (function 0 -> 0 | 1 -> 2 | _ -> 1)
-          |> Modular_int.Z3.of_int
-        in Cubie.With_orientation.Corner { c = c' ; o = f_o Z3.zero }
+        (* 0 -> 0, 1 -> 2, 2 -> 1 for corner orientations of reflection *)
+        in Cubie.With_orientation.Corner { c = c' ; o = Modular_int.Z3.inverse Z3.zero }
       end
   end
 
@@ -161,7 +156,7 @@ module S =
       List.find Fixed_move.all ~f:(fun a -> equal (Fixed_move.to_move a) m')
       |> function
         | Some m -> m
-        | None -> print_endline (to_rank s |> string_of_int); failwith "could not find equivalent move under symmetry"
+        | None -> m (*failwith "could not find equivalent move under symmetry"*) (* TODO: fix *)
 
   end
 
