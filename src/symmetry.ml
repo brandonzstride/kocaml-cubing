@@ -26,7 +26,7 @@ module Generator =
       To handle this, I make a new "move" that doesn't return a cubie with an orientation
       but rather return a cubie with a function on the orientation.
 
-      This move can be compared and composed with regular moves.
+      This move can be compared and composed with regular moves, maybe...
     *)
 
     module Cubie_with_function =
@@ -53,9 +53,34 @@ module Generator =
           | _ -> failwith "cannot get corner from Cubie_with_function.Edge constructor"
       end
 
+    (* module Orientation_move =
+      struct
+        type t = Cubie.With_orientation.t -> Cubie.With_orientation.t
+
+        let id = Fn.id
+
+        let of_move move = fun x -> Cubie.With_orientation.of_cubie x |>  *)
+
+    (**
+      This is the module that behaves a lot like `Move`, but instead of letting
+      orientations get passed along and added up, it lets us declared exactly
+      how the orientation will be affected during the move.
+      This is to be used only internally during the creation of the `Symmetry`
+      module (this file).    
+    *)
     module Function_move =
       struct
         type t = Cubie.t -> Cubie_with_function.t
+
+        let id = function
+          | Cubie.Corner c -> Cubie_with_function.Corner { c ; f = Modular_int.Z3.(+) Modular_int.Z3.zero } 
+          | Cubie.Edge   e -> Cubie_with_function.Edge   { e ; f = Modular_int.Z2.(+) Modular_int.Z2.zero } 
+
+        let of_move move =
+          fun x ->
+            match move x with
+            | Cubie.With_orientation.Edge { e ; o } -> Cubie_with_function.Edge { e ; f = Modular_int.Z2.(+) o }
+            | Cubie.With_orientation.Corner { c; o } -> Cubie_with_function.Corner { c ; f = Modular_int.Z3.(+) o }
 
         let ( * ) a b =
           function
@@ -67,6 +92,35 @@ module Generator =
             let bx = b x |> Cubie_with_function.corner_exn in
             let abx = a (Cubie.Corner bx.c) |> Cubie_with_function.corner_exn in
             Cubie_with_function.Corner { c = abx.c ; f = fun o -> bx.f |> abx.f }
+
+        let equal (m1 : t) (m2 : t) : bool =
+          let z2_function_equal f1 f2 = List.for_all Modular_int.Z2.all ~f:(fun x -> Modular_int.Z2.equal (f1 x) (f2 x)) in
+          let z3_function_equal f1 f2 = List.for_all Modular_int.Z3.all ~f:(fun x -> Modular_int.Z3.equal (f1 x) (f2 x)) in
+          let open Cubie_with_function in
+          List.for_all Cubie.all ~f:(fun x ->
+            match (m1 x), (m2 x) with
+            | Corner { c = c1 ; f = f1 }, Corner { c = c2 ; f = f2 } -> Cubie.Corner.compare c1 c2 = 0 && z3_function_equal f1 f2
+            | Edge { e = e1 ; f = f2 }, Edge { e = e2 ; f = f2 } -> Cubie.Edge.compare e1 e2 = 0 && z2_function_equal f1 f2
+            | _ -> failwith "cannot compare corner to edge"
+            )
+
+        (* Apply a function_move to a move, where the function_move is done first *)
+        (* Since the function_move is done first, the initial orientation is unknown, and it needs to stay a function_move *)
+        let on_move_left (m : t) (m' : Move.t) : Function_move.t =
+          m * (of_move m')
+
+        (* Apply a function_move to a move, where the function_move is done second *)
+        let on_move_right (m' : Move.t) (m : t) : Move.t
+          function
+          | Cubie.Edge _ as x ->
+            let mx = m' x |> Cubie.With_orientation.edge_exn in
+            let mmx = m (Cubie.Edge mx.e) |> Cubie_with_function.edge_exn in
+            Cubie.With_orientation.Edge { e = mmx.e ; o = mmx.f mx.o }
+          | Cubie.Corner _ as x ->
+            let mx = m' x |> Cubie.With_orientation.corner_exn in
+            let mmx = m (Cubie.Corner mx.c) |> Cubie_with_function.corner_exn in
+            Cubie.With_orientation.Corner { c = mmx.c ; o = mmx.f mx.o }
+
       end
 
     let to_function_move : t -> Fuction_move.t =
@@ -122,13 +176,13 @@ module Multiples =
     *)
     type t = { gen : Generator.t ; count : int }
 
-    let to_move =
+    let to_function_move =
       let open Generator in
       let open Move in
       let aux gen =
-        let m = Generator.to_move gen in
+        let m = Generator.to_function_move gen in
         function
-        | 0 -> Move.id 
+        | 0 -> Function_move.id
         | 1 -> m 
         | 2 -> m * m
         | _ -> m * m * m (* logically must be 3 by pattern match below *)
@@ -171,7 +225,7 @@ module S =
       let x' = to_rank x + 1 in
       if x' = n then None else Some (of_rank x') *)
 
-    let to_move (s : t) : Move.t =
+    let to_function_move (s : t) : Move.t =
       let open Move in
       Multiples.(
           to_move { gen = S_F2  ; count = Modular_int.Z2.to_int s.x_2 }
@@ -181,19 +235,42 @@ module S =
 
     let mult (s1 : t) (s2 : t) : t =
       (* Symmetries don't commute, so I'll have to convert to moves and compare moves *)
-      let m = Move.(to_move s1 * to_move s2) in
-      List.find all ~f:(fun a -> Move.equal (to_move a) m)
+      let m = Function_move.(to_function_move s1 * to_function_move s2) in
+      List.find all ~f:(fun a -> Funtion_move.equal (to_function_move a) m)
       |> function
         | Some s -> s
         | None -> failwith "could not find equivalent symmetry for multiplication"
 
     let inverse (s : t) : t =
-      let m = to_move s in
+      let m = to_functon_move s in
       (** Assume that right inverses are sufficient, and don't need left inverse *)
-      List.find all ~f:(fun a -> Move.(equal (m * to_move a) Move.id))
+      List.find all ~f:(fun a -> Function_move.(equal (m * to_function_move a) Function_move.id))
       |> function
         | Some s -> s
         | None -> failwith "could not find inverse symmetry"
+
+    (*
+      The problem here is that we need some initial permutation 
+
+      To perform a symmetry on a permutation is to first apply
+      the symmetry, then the permutation, and then the symmetry inverse.
+
+      However, if a permutation is applied in conjunction with this,
+      we can't assume that the orientation coming in will be zero.
+
+      Note that the reflection is always applied last if it exists,
+      and it is applied exactly once.
+
+      s = 8x_2 + 2x_3 + x_4
+      m = S_F2^x_2 * S_U4^x_3 * S_LR2^x_4
+
+      So to see how a symmetry acts on a move, I can first find how S_LR2 acts
+      *only* on the permutation, and from there apply the rest as moves.
+
+      How does it act on a permutation? Well, if I can convert a permutation
+      to a function move (which to me seems possible, but my tests before the)
+      move refactor seem to suggest is not possible
+    *)
 
     let on_perm (s : t) (p : Perm.t) : Perm.t =
       Move.(to_move s * p * to_move (inverse s))

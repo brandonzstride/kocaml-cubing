@@ -95,12 +95,12 @@ module type Coordinate =
   end
 
 (* Phase 1 coordinates *)
-module Twist              : Coordinate
-module Flip               : Coordinate (* only exposed for testing *)
-module UD_slice           : Coordinate (* only exposed for testing *)
-module Flip_UD_slice      : Coordinate
+module Twist         : Coordinate
+module Flip          : Coordinate (* only exposed for testing *)
+module UD_slice      : Coordinate (* only exposed for testing *)
+module Flip_UD_slice : Coordinate
 
 (* Phase 2 coordinates *)
-module Edge_perm       : Coordinate
-module Corner_perm     : Coordinate
-module UD_slice_perm   : Coordinate
+module Edge_perm     : Coordinate
+module Corner_perm   : Coordinate
+module UD_slice_perm : Coordinate
