@@ -15,20 +15,20 @@
   (pps ppx_jane)))
 
 (library
-  (name cubie_intf)
-  (modules cubie_intf)
+  (name cubie)
+  (modules cubie)
   (libraries
     core)
   (preprocess
   (pps ppx_jane)))
 
 (library
-  (name cubie)
-  (modules cubie)
+  (name cubie_with_orientation)
+  (modules cubie_with_orientation)
   (libraries
     core
-    modular_int
-    cubie_intf)
+    cubie
+    modular_int)
   (preprocess
   (pps ppx_jane)))
 
@@ -37,7 +37,8 @@
   (modules move)
   (libraries
     cubie
-    modular_int)
+    modular_int
+    cubie_with_orientation)
   (preprocess
   (pps ppx_jane)))
 
@@ -45,7 +46,8 @@
   (name perm)
   (modules perm)
   (libraries
-    move)
+    move
+    cubie_with_orientation)
   (preprocess
   (pps ppx_jane)))
 
@@ -69,6 +71,7 @@
     core
     move
     symmetry
-    lookup_table)
+    lookup_table
+    cubie_with_orientation)
   (preprocess
     (pps ppx_jane)))
