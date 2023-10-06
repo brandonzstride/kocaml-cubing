@@ -18,112 +18,8 @@ module Generator =
     *)
     type t = S_F2 | S_U4 | S_LR2
 
-    (*
-      The change in orientation of the cubies can depend on the initial orientation.
-      For example, the reflection symmetry sends corner orientations to their mod 3
-      inverse.
 
-      To handle this, I make a new "move" that doesn't return a cubie with an orientation
-      but rather return a cubie with a function on the orientation.
-
-      This move can be compared and composed with regular moves, maybe...
-    *)
-
-    module Cubie_with_function =
-      struct
-        module Corner =
-          struct
-            type t = { c : Cubie.Corner.t ; f : Modular_int.Z3.t -> Modular_int.Z3.t }
-          end
-        module Edge =
-          struct
-            type t = { e : Cubie.Edge.t ; f : Modular_int.Z2.t -> Modular_int.Z2.t }
-          end
-
-        type t =
-          | Corner of Corner.t
-          | Edge of Edge.t
-
-        let edge_exn = function
-          | Edge e -> e
-          | _ -> failwith "cannot get edge from Cubie_with_function.Corner constructor"
-
-        let corner_exn = function
-          | Corner c -> c
-          | _ -> failwith "cannot get corner from Cubie_with_function.Edge constructor"
-      end
-
-    (* module Orientation_move =
-      struct
-        type t = Cubie.With_orientation.t -> Cubie.With_orientation.t
-
-        let id = Fn.id
-
-        let of_move move = fun x -> Cubie.With_orientation.of_cubie x |>  *)
-
-    (**
-      This is the module that behaves a lot like `Move`, but instead of letting
-      orientations get passed along and added up, it lets us declared exactly
-      how the orientation will be affected during the move.
-      This is to be used only internally during the creation of the `Symmetry`
-      module (this file).    
-    *)
-    module Function_move =
-      struct
-        type t = Cubie.t -> Cubie_with_function.t
-
-        let id = function
-          | Cubie.Corner c -> Cubie_with_function.Corner { c ; f = Modular_int.Z3.(+) Modular_int.Z3.zero } 
-          | Cubie.Edge   e -> Cubie_with_function.Edge   { e ; f = Modular_int.Z2.(+) Modular_int.Z2.zero } 
-
-        let of_move move =
-          fun x ->
-            match move x with
-            | Cubie.With_orientation.Edge { e ; o } -> Cubie_with_function.Edge { e ; f = Modular_int.Z2.(+) o }
-            | Cubie.With_orientation.Corner { c; o } -> Cubie_with_function.Corner { c ; f = Modular_int.Z3.(+) o }
-
-        let ( * ) a b =
-          function
-          | Cubie.Edge _ as x ->
-            let bx = b x |> Cubie_with_function.edge_exn in
-            let abx = a (Cubie.Edge bx.e) |> Cubie_with_function.edge_exn in
-            Cubie_with_function.Edge { e = abx.e ; f = fun o -> bx.f |> abx.f }
-          | Cubie.Corner _ as x ->
-            let bx = b x |> Cubie_with_function.corner_exn in
-            let abx = a (Cubie.Corner bx.c) |> Cubie_with_function.corner_exn in
-            Cubie_with_function.Corner { c = abx.c ; f = fun o -> bx.f |> abx.f }
-
-        let equal (m1 : t) (m2 : t) : bool =
-          let z2_function_equal f1 f2 = List.for_all Modular_int.Z2.all ~f:(fun x -> Modular_int.Z2.equal (f1 x) (f2 x)) in
-          let z3_function_equal f1 f2 = List.for_all Modular_int.Z3.all ~f:(fun x -> Modular_int.Z3.equal (f1 x) (f2 x)) in
-          let open Cubie_with_function in
-          List.for_all Cubie.all ~f:(fun x ->
-            match (m1 x), (m2 x) with
-            | Corner { c = c1 ; f = f1 }, Corner { c = c2 ; f = f2 } -> Cubie.Corner.compare c1 c2 = 0 && z3_function_equal f1 f2
-            | Edge { e = e1 ; f = f2 }, Edge { e = e2 ; f = f2 } -> Cubie.Edge.compare e1 e2 = 0 && z2_function_equal f1 f2
-            | _ -> failwith "cannot compare corner to edge"
-            )
-
-        (* Apply a function_move to a move, where the function_move is done first *)
-        (* Since the function_move is done first, the initial orientation is unknown, and it needs to stay a function_move *)
-        let on_move_left (m : t) (m' : Move.t) : Function_move.t =
-          m * (of_move m')
-
-        (* Apply a function_move to a move, where the function_move is done second *)
-        let on_move_right (m' : Move.t) (m : t) : Move.t
-          function
-          | Cubie.Edge _ as x ->
-            let mx = m' x |> Cubie.With_orientation.edge_exn in
-            let mmx = m (Cubie.Edge mx.e) |> Cubie_with_function.edge_exn in
-            Cubie.With_orientation.Edge { e = mmx.e ; o = mmx.f mx.o }
-          | Cubie.Corner _ as x ->
-            let mx = m' x |> Cubie.With_orientation.corner_exn in
-            let mmx = m (Cubie.Corner mx.c) |> Cubie_with_function.corner_exn in
-            Cubie.With_orientation.Corner { c = mmx.c ; o = mmx.f mx.o }
-
-      end
-
-    let to_function_move : t -> Fuction_move.t =
+    let to_move : t -> Move.t =
     let open Cubie in
     let open Cubie.Edge in
     let open Cubie.Corner in
@@ -135,12 +31,12 @@ module Generator =
         | UR -> DL | UF -> DF | UL -> DR | UB -> DB
         | DR -> UL | DF -> UF | DL -> UR | DB -> UB
         | FR -> FL | FL -> FR | BL -> BR | BR -> BL end
-        in Cubie_with_function.Edge { e = e' ; f = Fn.id }
+        in With_orientation.Edge { e = e' ; o = Z2.zero }
       | Corner c ->
         let c' = begin match c with
         | URF -> DLF | UFL -> DFR | ULB -> DRB | UBR -> DBL
         | DFR -> UFL | DLF -> URF | DBL -> UBR | DRB -> ULB end
-        in Cubie_with_function.Corner { c = c' ; f = Fn.id }
+        in With_orientation.Corner { c = c' ; o = Z3.zero }
       end
     | S_U4 -> begin function
       | Edge e ->
@@ -148,24 +44,24 @@ module Generator =
         | UR -> UB, 0 | UF -> UR, 0 | UL -> UF, 0 | UB -> UL, 0
         | DR -> DB, 0 | DF -> DR, 0 | DL -> DF, 0 | DB -> DL, 0
         | FR -> BR, 1 | FL -> FR, 1 | BL -> FL, 1 | BR -> BL, 1 end
-        in Cubie_with_function.Edge { e = e' ; f = Z2.(+) (Z2.of_int o) }
+        in With_orientation.Edge { e = e' ; o = Z2.of_int o }
       | Corner c ->
         let c' = begin match c with
         | URF -> UBR | UFL -> URF | ULB -> UFL | UBR -> ULB
         | DFR -> DRB | DLF -> DFR | DBL -> DLF | DRB -> DBL end
-        in Cubie_with_function.Corner { c = c' ; f = Fn.id }
+        in With_orientation.Corner { c = c' ; o = Z3.zero }
       end
     | S_LR2 -> begin function
       | Edge e ->
         let e' = begin match e with
         | UR -> UL | UL -> UR | FR -> FL | FL -> FR
         | BR -> BL | BL -> BR | DR -> DL | DL -> DR | _ -> e end
-        in Cubie_with_function.Edge { e = e' ; f = Fn.id }
+        in With_orientation.Edge { e = e' ; o = Z2.zero }
       | Corner c -> 
         let c' = begin match c with
         | URF -> UFL | UFL -> URF | UBR -> ULB | ULB -> UBR
         | DFR -> DLF | DLF -> DFR | DBL -> DRB | DRB -> DBL end
-        in Cubie_with_function.Corner { c = c' ; f = Modular_int.Z3.inverse }
+        in With_orientation.Corner { c = c' ; o = Z3.zero } (* should apply inverse *)
       end
     
     (*
@@ -257,13 +153,14 @@ module Multiples =
     *)
     type t = { gen : Generator.t ; count : int }
 
-    let to_function_move =
+    (* must be careful on S_LR2 because it's currently wrong *)
+    let to_move =
       let open Generator in
       let open Move in
       let aux gen =
-        let m = Generator.to_function_move gen in
+        let m = Generator.to_move gen in
         function
-        | 0 -> Function_move.id
+        | 0 -> Move.id
         | 1 -> m 
         | 2 -> m * m
         | _ -> m * m * m (* logically must be 3 by pattern match below *)
@@ -306,7 +203,8 @@ module S =
       let x' = to_rank x + 1 in
       if x' = n then None else Some (of_rank x') *)
 
-    let to_function_move (s : t) : Move.t =
+    (* must be careful on S_LR2 *)
+    let to_move (s : t) : Move.t =
       let open Move in
       Multiples.(
           to_move { gen = S_F2  ; count = Modular_int.Z2.to_int s.x_2 }
@@ -314,18 +212,21 @@ module S =
         * to_move { gen = S_LR2 ; count = Modular_int.Z2.to_int s.x_4 }
       )
 
+    (* I think this is currently safe on S_LR2 because no symmetry only
+       orients the cubies, so if orientation of to_move is wrong, then
+      it's okay because it needs to only depend on the permutation *)
     let mult (s1 : t) (s2 : t) : t =
       (* Symmetries don't commute, so I'll have to convert to moves and compare moves *)
-      let m = Function_move.(to_function_move s1 * to_function_move s2) in
-      List.find all ~f:(fun a -> Funtion_move.equal (to_function_move a) m)
+      let m = Move.(to_move s1 * to_move s2) in
+      List.find all ~f:(fun a -> Move.equal (to_move a) m)
       |> function
         | Some s -> s
         | None -> failwith "could not find equivalent symmetry for multiplication"
 
     let inverse (s : t) : t =
-      let m = to_functon_move s in
+      let m = to_move s in
       (** Assume that right inverses are sufficient, and don't need left inverse *)
-      List.find all ~f:(fun a -> Function_move.(equal (m * to_function_move a) Function_move.id))
+      List.find all ~f:(fun a -> Move.(equal (m * to_move a) Move.id))
       |> function
         | Some s -> s
         | None -> failwith "could not find inverse symmetry"
