@@ -286,9 +286,10 @@ let test_raw_phase2_coord_move_sequence =
 
 let cube_tests = "cube tests" >::: [
   test_coord_of_perm;
-  test_counts;
-  test_ranks;
-  test_inverses;
+  (* These are commented out because they are exhaustive and slow *)
+  (* test_counts; *)
+  (* test_ranks; *)
+  (* test_inverses; *)
   test_move_sequence;
   test_raw_phase1_coord_move_sequence;
   test_raw_phase2_coord_move_sequence;

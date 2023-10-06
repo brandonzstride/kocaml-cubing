@@ -18,7 +18,58 @@ module Generator =
     *)
     type t = S_F2 | S_U4 | S_LR2
 
-    let to_move =
+    (*
+      The change in orientation of the cubies can depend on the initial orientation.
+      For example, the reflection symmetry sends corner orientations to their mod 3
+      inverse.
+
+      To handle this, I make a new "move" that doesn't return a cubie with an orientation
+      but rather return a cubie with a function on the orientation.
+
+      This move can be compared and composed with regular moves.
+    *)
+
+    module Cubie_with_function =
+      struct
+        module Corner =
+          struct
+            type t = { c : Cubie.Corner.t ; f : Modular_int.Z3.t -> Modular_int.Z3.t }
+          end
+        module Edge =
+          struct
+            type t = { e : Cubie.Edge.t ; f : Modular_int.Z2.t -> Modular_int.Z2.t }
+          end
+
+        type t =
+          | Corner of Corner.t
+          | Edge of Edge.t
+
+        let edge_exn = function
+          | Edge e -> e
+          | _ -> failwith "cannot get edge from Cubie_with_function.Corner constructor"
+
+        let corner_exn = function
+          | Corner c -> c
+          | _ -> failwith "cannot get corner from Cubie_with_function.Edge constructor"
+      end
+
+    module Function_move =
+      struct
+        type t = Cubie.t -> Cubie_with_function.t
+
+        let ( * ) a b =
+          function
+          | Cubie.Edge _ as x ->
+            let bx = b x |> Cubie_with_function.edge_exn in
+            let abx = a (Cubie.Edge bx.e) |> Cubie_with_function.edge_exn in
+            Cubie_with_function.Edge { e = abx.e ; f = fun o -> bx.f |> abx.f }
+          | Cubie.Corner _ as x ->
+            let bx = b x |> Cubie_with_function.corner_exn in
+            let abx = a (Cubie.Corner bx.c) |> Cubie_with_function.corner_exn in
+            Cubie_with_function.Corner { c = abx.c ; f = fun o -> bx.f |> abx.f }
+      end
+
+    let to_function_move : t -> Fuction_move.t =
     let open Cubie in
     let open Cubie.Edge in
     let open Cubie.Corner in
@@ -30,12 +81,12 @@ module Generator =
         | UR -> DL | UF -> DF | UL -> DR | UB -> DB
         | DR -> UL | DF -> UF | DL -> UR | DB -> UB
         | FR -> FL | FL -> FR | BL -> BR | BR -> BL end
-        in Cubie.With_orientation.Edge { e = e' ; o = Z2.zero }
+        in Cubie_with_function.Edge { e = e' ; f = Fn.id }
       | Corner c ->
         let c' = begin match c with
         | URF -> DLF | UFL -> DFR | ULB -> DRB | UBR -> DBL
         | DFR -> UFL | DLF -> URF | DBL -> UBR | DRB -> ULB end
-        in Cubie.With_orientation.Corner { c = c' ; o = Z3.zero }
+        in Cubie_with_function.Corner { c = c' ; f = Fn.id }
       end
     | S_U4 -> begin function
       | Edge e ->
@@ -43,27 +94,24 @@ module Generator =
         | UR -> UB, 0 | UF -> UR, 0 | UL -> UF, 0 | UB -> UL, 0
         | DR -> DB, 0 | DF -> DR, 0 | DL -> DF, 0 | DB -> DL, 0
         | FR -> BR, 1 | FL -> FR, 1 | BL -> FL, 1 | BR -> BL, 1 end
-        in Cubie.With_orientation.Edge { e = e' ; o = Z2.of_int o }
+        in Cubie_with_function.Edge { e = e' ; f = Z2.(+) (Z2.of_int o) }
       | Corner c ->
         let c' = begin match c with
         | URF -> UBR | UFL -> URF | ULB -> UFL | UBR -> ULB
         | DFR -> DRB | DLF -> DFR | DBL -> DLF | DRB -> DBL end
-        in Cubie.With_orientation.Corner { c = c' ; o = Z3.zero }
+        in Cubie_with_function.Corner { c = c' ; f = Fn.id }
       end
     | S_LR2 -> begin function
       | Edge e ->
         let e' = begin match e with
         | UR -> UL | UL -> UR | FR -> FL | FL -> FR
         | BR -> BL | BL -> BR | DR -> DL | DL -> DR | _ -> e end
-        in Cubie.With_orientation.Edge { e = e' ; o = Z2.zero }
+        in Cubie_with_function.Edge { e = e' ; f = Fn.id }
       | Corner c -> 
         let c' = begin match c with
         | URF -> UFL | UFL -> URF | UBR -> ULB | ULB -> UBR
         | DFR -> DLF | DLF -> DFR | DBL -> DRB | DRB -> DBL end
-        (* TODO: Actually needs to consider intial orientation to know how final is affected *)
-        (* Old code in temp.ml for now *)
-        (* 0 -> 0, 1 -> 2, 2 -> 1 for corner orientations of reflection *)
-        in Cubie.With_orientation.Corner { c = c' ; o = Modular_int.Z3.inverse Z3.zero }
+        in Cubie_with_function.Corner { c = c' ; f = Modular_int.Z3.inverse }
       end
   end
 
