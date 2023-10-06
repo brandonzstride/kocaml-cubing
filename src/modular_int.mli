@@ -13,6 +13,7 @@ module type S = sig
   val dec : t -> t
   val n : int
   val all : t list
+  val zero : t
 end
 
 module Z2 : S

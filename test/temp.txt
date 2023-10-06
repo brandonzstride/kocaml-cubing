@@ -20,3 +20,16 @@ from. I'm not sure how I can invert the correct cubies without knowing where
 they are coming from. Maybe I have to do it first. But this goes against order
 of ops. But in a cubie if I apply all the static stuff first (e.g. flipping some)
 things, they'll come out flipped correctly.
+
+Goal of applying a move to a ori coordinate is this:
+* Note the current orientiation of the cubies *in each position*
+* As moves currently are, this orientation is dependent on initial orientation
+* But we want the oris to just be what they really are
+  * This is effectively done when calling it with ori zero, but maybe not
+  * because the orientation is added to the piece that its coming from, I think
+    and not the piece that is really there.
+  * So indeed it will be helpful to make a move not consider initial orientation at
+    all and just return a change in orientation.
+
+I'm not totally confident that this will fix it, but it will be a little smoother
+as it relates to Kociemba's code.

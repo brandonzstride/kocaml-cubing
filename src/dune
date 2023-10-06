@@ -15,11 +15,20 @@
   (pps ppx_jane)))
 
 (library
+  (name cubie_intf)
+  (modules cubie_intf)
+  (libraries
+    core)
+  (preprocess
+  (pps ppx_jane)))
+
+(library
   (name cubie)
   (modules cubie)
   (libraries
     core
-    modular_int)
+    modular_int
+    cubie_intf)
   (preprocess
   (pps ppx_jane)))
 

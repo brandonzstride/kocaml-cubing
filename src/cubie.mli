@@ -1,55 +1,34 @@
 
-module Corner_facelet : sig
-  (* Facelets are written in clockwise order, starting with reference facelet *)
-  (*
-    enumerate defines
-      all : t list   
-    
-    compare defines
-      compare : t -> t -> int
-  *)
-  type t = URF | UFL | ULB | UBR | DFR | DLF | DBL | DRB [@@deriving enumerate, compare]
-  val max : int 
-  val pp : t -> string
-end
+(** It seems like this doesn't work, and I'll need to think of another way because
+    users can't find Cubie.Edge.t, or similar, because they only find Cubie_intf.Edge.t
+    when using Cubie. *)
+include Cubie_intf.T
 
-module Edge_facelet : sig
-  (* Facelets are written starting with reference facelet. *)
-  type t = UR | UF | UL | UB | DR | DF | DL | DB | FR | FL | BL | BR [@@deriving enumerate, compare]
-  val is_ud_slice : t -> bool
-  val is_ud_edge : t -> bool
-  val max : int
-  val all_ud_edges : t list
-  val all_ud_slice_edges : t list
-  val pp : t -> string
-end
+module With_orientation :
+  sig
+    module Corner:
+      sig
+        (** References Cubie.Corner--not a recursive type *)
+        type t = { c : Cubie_intf.Corner.t ; o : Modular_int.Z3.t } [@@deriving compare]
+        val pp : t -> string
+      end
 
-module Corner : sig
-  (* Corners will have orientation in Z3 *)
-  type t = { c : Corner_facelet.t ; o : Modular_int.Z3.t } [@@deriving compare]
+    module Edge :
+      sig
+        (** References Cubie.Edge--not a recursive type *)
+        type t = { e : Cubie_intf.Edge.t ; o : Modular_int.Z2.t } [@@deriving compare]
+        val pp : t -> string
+      end
 
-  val all : t list (* all corners with 0 orientation *)
-  val pp : t -> string
-end
+    type t =
+      | Corner of Corner.t
+      | Edge of Edge.t
+      [@@deriving compare]
 
-module Edge : sig
-  (* Edges will have orientation in Z2 *)
-  type t = { e : Edge_facelet.t ; o : Modular_int.Z2.t } [@@deriving compare]
-
-  val is_ud_slice : t -> bool
-  val is_ud_edge : t -> bool
-  val all : t list (* all edges with 0 orientation *)
-  val all_ud_edges : t list
-  val all_ud_slice_edges : t list
-  val pp : t -> string
-end
-
-(* Compare has all corners less than edges. *)
-type t =
-  | Corner of Corner.t
-  | Edge of Edge.t
-  [@@deriving enumerate, compare]
-
-val is_ud_slice : t -> bool
-val is_ud_edge : t -> bool
-val pp : t -> string
+    val of_cubie : Cubie_intf.t -> t (** Gives zero orientation *)
+    val is_ud_slice : t -> bool
+    val is_ud_edge : t -> bool
+    val edge_exn : t -> Edge.t
+    val corner_exn : t -> Corner.t
+    val pp : t -> string
+  end

@@ -199,6 +199,8 @@ module Sym_base_of_raw (T : T) : Sym_base =
       let m' = Symmetry.on_move x.sym m in
       let y = Raw.perform_fixed_move x.rep m' |> of_raw in
       { rep = y.rep ; sym = Symmetry.mult y.sym x.sym }
+      (** ^ not updated for when left is applied first in mult,
+          but I think I might have initially had it wrong, so it's right now. *)
       
     (*
       To perform a symmetry s, we need to consider the new symmetry
@@ -455,7 +457,7 @@ module Twist = Make (
       and give each one its own digit in a base 3 number.
     *)
     let of_perm (p : Perm.t) : int =
-      let open Cubie.Corner in
+      let open Cubie.With_orientation.Corner in
       let rec go acc = function
       | [] | [_] -> acc (* ignores least signficant corner *)
       | c :: tl -> go (acc * 3 + Modular_int.Z3.to_int c.o) tl
@@ -473,7 +475,7 @@ module Twist = Make (
       let rec go x = function
       | [] -> failwith "impossible if cube permutation is well-formed"
       | hd :: tl -> begin function
-        | Corner c when Cubie.Corner_facelet.compare hd c.c = 0 -> Corner {c = c.c ; o = Modular_int.Z3.of_int x }
+        | Corner c when Cubie.Corner.compare hd c = 0 -> Corner { c = c; o = Modular_int.Z3.of_int x }
         | c -> (go (x / 3) tl) c
         end
       in
@@ -486,8 +488,8 @@ module Twist = Make (
         |> (+) (x * 3)
       in
       function (* the return type is a function. Capture edges first and pipe corners through *)
-      | Edge   _ as e -> e (* let edges be untouched *)
-      | Corner _ as c -> go new_coord (List.rev Cubie.Corner_facelet.all) c 
+      | Edge e -> Edge { e ; o = Modular_int.Z2.zero } (* let edges be untouched *)
+      | Corner _ as c -> go new_coord (List.rev Cubie.Corner.all) c 
 
   end
 ) 
@@ -517,7 +519,7 @@ module Flip = Make (
       let rec go x = function
       | [] -> failwith "impossible if cube permutation is well-formed"
       | hd :: tl -> begin function
-        | Edge e when Cubie.Edge_facelet.compare hd e.e = 0 -> Edge {e = e.e ; o = Modular_int.Z2.of_int x }
+        | Edge e when Cubie.Edge.compare hd e = 0 -> Edge { e = e ; o = Modular_int.Z2.of_int x }
         | e -> (go (x / 2) tl) e
         end
       in
@@ -530,8 +532,8 @@ module Flip = Make (
         |> (+) (x * 2)
       in
       function (* the return type is a function. Capture corners first and pipe edges through *)
-      | Corner _ as c -> c (* let corners be untouched *)
-      | Edge   _ as e -> go new_coord (List.rev Cubie.Edge_facelet.all) e  (* TODO: use next instead of all *)
+      | Corner c -> Corner { c ; o = Modular_int.Z3.zero } (* let corners be untouched *)
+      | Edge   _ as e -> go new_coord (List.rev Cubie.Edge.all) e  (* TODO: use next instead of all *)
   end
 ) 
 
@@ -561,7 +563,7 @@ module UD_slice = Make (
       this is unique when we invert the coordinate in `to_perm`.
     *)
     let of_perm (p : Perm.t) : int =
-      let is_filled e = Cubie.Edge e |> p |> Cubie.is_ud_slice in
+      let is_filled e = Cubie.Edge e |> p |> Cubie.With_orientation.is_ud_slice in
       let rec go i k = function
       | _ when k < 0 -> 0
       | [] -> 0
@@ -593,21 +595,17 @@ module UD_slice = Make (
       | _ when k < 0 -> fun x -> x (* all ud slice found, just leave the rest in place *)
       | [] -> failwith "logically impossible if cube is well-formed"
       | hd :: tl when is_filled x i k -> begin function
-        | Edge e when Edge_facelet.compare hd e.e = 0 ->
-            let new_e = List.nth_exn Edge_facelet.all_ud_slice_edges k in
-            Edge { e = new_e ; o = e.o } (* keep orientation the same *)
+        | e when Edge.compare hd e = 0 -> List.nth_exn Edge.all_ud_slice_edges k
         | e -> go x (i - 1) (k - 1) tl e
         end
       | hd :: tl -> begin function (* this space is not filled with ud_slice edge *) 
-        | Edge e when Edge_facelet.compare hd e.e = 0 ->
-          let new_e = List.nth_exn Edge_facelet.all_ud_edges (i - k - 1) in (* fill with non-ud-slice edge *)
-          Edge { e = new_e ; o = e.o } (* keep orientation the same *)
+        | e when Edge.compare hd e = 0 -> List.nth_exn Edge.all_ud_edges (i - k - 1) (* fill with non-ud-slice edge *)
         | e -> go (x - ncr i k) (i - 1) k tl e
         end
       in
       function (* return type is function *)
-      | Corner _ as c -> c (* leave corners untouched *)
-      | Edge   _ as e -> go x 11 3 (List.rev Edge_facelet.all) e
+      | Corner c -> Corner { c ; o = Modular_int.Z3.zero } (* leave corners untouched *)
+      | Edge   e -> Edge { e = go x 11 3 (List.rev Edge.all) e ; o = Modular_int.Z2.zero }
 
   end
 ) 
@@ -659,7 +657,8 @@ module Flip_UD_slice = Make (
     *)
     let to_perm (x : int) : Perm.t =
       let y = T.of_rank x in
-      Move.(Flip.Raw.to_perm y.flip * UD_slice.Raw.to_perm y.ud_slice)
+      Move.(UD_slice.Raw.to_perm y.ud_slice * Flip.Raw.to_perm y.flip)
+      (** TODO: does order matter here ^ ? *)
 
     let of_perm (p : Perm.t) : int =
       T.{ ud_slice = UD_slice.Raw.of_perm p ; flip = Flip.Raw.of_perm p }
@@ -711,8 +710,8 @@ module Perm_coord (C : sig val all : Cubie.t list end) = Make (
     let cubie_compare a b =
       let open Cubie in
       match a, b with
-      | Corner { c=c1 ; o=_}, Corner { c=c2 ; o=_} -> Corner_facelet.compare c1 c2
-      | Edge   { e=e1 ; o=_}, Edge   { e=e2 ; o=_} -> Edge_facelet.compare e1 e2
+      | Corner { c=c1 ; o=_}, Corner { c=c2 ; o=_} -> Corner.compare c1 c2
+      | Edge   { e=e1 ; o=_}, Edge   { e=e2 ; o=_} -> Edge.compare e1 e2
       | _ -> failwith "cannot compare Corner with Edge"
 
     let of_perm (p : Perm.t) : int =
@@ -744,7 +743,6 @@ module Perm_coord (C : sig val all : Cubie.t list end) = Make (
       i! to get exactly the rank that concerns us.
       Then for next step, subract off this rank * i!, and repeat.
     *)
-    (* TODO: keep orientations the same *)
     let to_perm (x : int) : Perm.t =
       let rm x = List.filter ~f:(fun a -> cubie_compare x a <> 0) in
       (* 
@@ -752,13 +750,14 @@ module Perm_coord (C : sig val all : Cubie.t list end) = Make (
         that can be mapped to with the "is replaced by" notation.
       *)
       let rec go x i possible_mappings = function
-      | [] -> Fn.id (* leave all remaining cubies in place *)
+      | [] -> Cubie.With_orientation.of_cubie (* leave all remaining cubies in place *)
       | hd :: tl -> let this_mapping = List.nth_exn possible_mappings (x / fac i) in
         begin function
-        | c when cubie_compare hd c = 0 -> this_mapping
+        | c when cubie_compare hd c = 0 -> Cubie.With_orientation.of_cubie this_mapping
         | c -> c |> go (x mod fac i) (i - 1) (rm this_mapping possible_mappings) tl
         end
-      in go x (k - 1) all_rev all_rev
+      in
+      go x (k - 1) all_rev all_rev
   end
 )
 

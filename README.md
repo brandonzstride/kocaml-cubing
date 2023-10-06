@@ -13,5 +13,8 @@ TODO:
 * Use config for table locations and setup state.
 * And probably lots more.
 
+move_refactor branch:
+* Need to make it so that a move only takes a cubie and returns cubie with an orientation.
+
 Current status:
 * 26 Sep 2023 -- orientation coordinates fail under moves. I may refactor moves to not consider initial orientation, but I don't yet see how this solves the issue.

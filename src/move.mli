@@ -8,16 +8,20 @@ A move will map every cubie on the cube to some other cubie with new orientation
    
 *)
 
-module T : sig
-  type t = Cubie.t -> Cubie.t
-end
+module T :
+  sig
+    type t = Cubie.t -> Cubie.With_orientation.t
+  end
 
 type t = T.t
+
+val id : t
 
 (* Since domain is finite and behavior of moves are limited, we can compare *)
 val equal : t -> t -> bool
 
-(* Compose the two moves. The second is applied first, like how (f * g)(x) ~= f(g(x)) *)
+(* Compose the two moves. The left is applied first, so (f * g)(x) ~= g(f(x)) *)
+(* This isn't typical, but it's noted in the permutation wikipedia that this is sometimes done *)
 val ( * ) : t -> t -> t
 
 module Faceturn : sig

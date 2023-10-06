@@ -1,6 +1,6 @@
 
 type t
-(* Compose the two symmetries. The second is applied first. *)
+(* Compose the two symmetries. The left is applied first. *)
 val mult : t -> t -> t
 val inverse : t -> t
 (* how a symmetry s acts on a perm p by s * p * s^-1 *)

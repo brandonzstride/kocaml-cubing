@@ -17,6 +17,7 @@ module type S = sig
   val dec : t -> t
   val n : int
   val all : t list
+  val zero : t
 end
 
 module Make (G : sig
@@ -38,6 +39,7 @@ module Make (G : sig
   let all = List.init n ~f:of_int
   let inc x = Int.(+) 1 x |> of_int
   let dec x = Int.(+) (-1) x |> of_int
+  let zero = 0
 
 end
 
