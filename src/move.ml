@@ -12,6 +12,14 @@ let id = Cubie.With_orientation.of_cubie
 let equal (m1 : t) (m2 : t) : bool =
   List.for_all Cubie.all ~f:(fun x -> Cubie.With_orientation.compare (m1 x) (m2 x) = 0)
 
+let equal_without_orientation (m1 : t) (m2 : t) : bool =
+  List.for_all Cubie.all ~f:(fun x ->
+    (m1 x, m2 x)
+    |> Tuple2.map ~f:Cubie.With_orientation.to_cubie
+    |> Tuple2.uncurry Cubie.compare
+    |> ( = ) 0
+  )
+
 
 (** Compose a and b by first applying a, then applying b *)
 let ( * ) a b = 

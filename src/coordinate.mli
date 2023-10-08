@@ -91,6 +91,7 @@ module type Coordinate =
   sig
     module Raw : T
     module Make_memoized_coordinate (_ : Memo_params)     : T
+    (* The below will break on Twist because it uses corner orientation *)
     module Make_symmetry_coordinate (_ : Sym_memo_params) : T
   end
 

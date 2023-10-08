@@ -60,6 +60,7 @@ module With_orientation :
       [@@deriving compare]
 
     val of_cubie : T.t -> t (** Gives zero orientation *)
+    val to_cubie : t -> T.t (** Ignores orientation *)
     val is_ud_slice : t -> bool
     val is_ud_edge : t -> bool
     val edge_exn : t -> Edge.t

@@ -3,7 +3,7 @@ An OCaml implementation of the Kociemba Two-Phase algorithm.
 
 IMPORTANT: This project is a work in progress. It is far from complete at the moment. Please do not expect it to do anything meaningful for the time being.
 
-This project is entirely my interpretation of Herbert Kociemba's explanation on [kociemba.org](http://kociemba.org/cube.htm). I do not refer to any other code that implements the Two-Phase algorithm.
+This project is entirely my interpretation of Herbert Kociemba's explanation on [kociemba.org](http://kociemba.org/cube.htm). I do not refer to any code that implements the Two-Phase algorithm.
 
 TODO:
 * Fix reflection symmetry's behavior on corner orientation.

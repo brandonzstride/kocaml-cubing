@@ -19,6 +19,7 @@ val id : t
 
 (* Since domain is finite and behavior of moves are limited, we can compare *)
 val equal : t -> t -> bool
+val equal_without_orientation : t -> t -> bool
 
 (* Compose the two moves. The left is applied first, so (f * g)(x) ~= g(f(x)) *)
 (* This isn't typical, but it's noted in the permutation wikipedia that this is sometimes done *)

@@ -258,13 +258,15 @@ module Make_symmetry_coordinate (S : Sym_base) (M : Sym_memo_params) =
       match M.status with
       | `Is_saved -> Raw_table.from_file M.class_to_rep_filepath
       | `Needs_computation ->
+        let time = Caml_unix.gettimeofday () in
         let tbl =
           S.all ()
           |> List.map ~f:S.get_rep
           |> List.sort ~compare:S.Raw.compare
-          |> Raw_table.of_list (* TODO: save it at filepath *)
+          |> Raw_table.of_list
         in
-        Raw_table.to_file tbl M.class_to_rep_filepath;
+        (* Raw_table.to_file tbl M.class_to_rep_filepath; *)
+        Printf.printf "Computed class to rep table of size %d in time %fs\n" (Raw_table.get_n tbl) (Caml_unix.gettimeofday() -. time);
         tbl
 
     (*
@@ -290,16 +292,18 @@ module Make_symmetry_coordinate (S : Sym_base) (M : Sym_memo_params) =
       match M.status with
       | `Is_saved -> M.rep_to_class_filepath |> Sexp.load_sexp |> Raw_map.t_of_sexp Int.t_of_sexp
       | `Needs_computation ->
-          let map =
-            let f = Raw_table.lookup class_to_rep_table in
-            let rec go i map =
-              if i = n then map
-              else Map.add_exn map ~key:(f i) ~data:i |> go (i + 1)
-            in
-            go 0 Raw_map.empty
+        let time = Caml_unix.gettimeofday () in
+        let map =
+          let f = Raw_table.lookup class_to_rep_table in
+          let rec go i map =
+            if i = n then map
+            else Map.add_exn map ~key:(f i) ~data:i |> go (i + 1)
           in
-          Sexp.save M.rep_to_class_filepath (Raw_map.sexp_of_t Int.sexp_of_t map);
-          map
+          go 0 Raw_map.empty
+        in
+        (* Sexp.save M.rep_to_class_filepath (Raw_map.sexp_of_t Int.sexp_of_t map); *)
+        Printf.printf "Computed rep to class map of size %d in time %fs\n" I.n (Caml_unix.gettimeofday() -. time);
+        map
 
     let of_rank = Int.( * ) Symmetry.n (* gets representative sym coordinate from rank *)
     let zero = 0
@@ -324,6 +328,7 @@ module Make_symmetry_coordinate (S : Sym_base) (M : Sym_memo_params) =
       match M.status with
       | `Is_saved -> Move_table.from_file M.move_filepath
       | `Needs_computation ->
+        let time = Caml_unix.gettimeofday () in
         let f x m =
           x
           |> get_rep_raw_coord
@@ -332,7 +337,8 @@ module Make_symmetry_coordinate (S : Sym_base) (M : Sym_memo_params) =
           |> of_base
         in
         let tbl = Move_table.create (all ()) Move.Fixed_move.all ~f in
-        Move_table.to_file tbl M.move_filepath;
+        (* Move_table.to_file tbl M.move_filepath; *)
+        Printf.printf "Computed move table of size %d in time %fs\n" (I.n * Move.Fixed_move.n) (Caml_unix.gettimeofday() -. time);
         tbl
 
     (*

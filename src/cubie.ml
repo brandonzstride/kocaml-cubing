@@ -73,6 +73,10 @@ module With_orientation =
     | T.Edge e -> Edge { e ; o = Modular_int.Z2.zero }
     | T.Corner c -> Corner { c ; o = Modular_int.Z3.zero }
 
+    let to_cubie = function
+    | Edge e -> T.Edge e.e
+    | Corner c -> T.Corner c.c
+
     let is_ud_slice = function
     | Edge e -> T.Edge.is_ud_slice e.e
     | _ -> false

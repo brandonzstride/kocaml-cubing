@@ -225,21 +225,6 @@ let test_inverses =
   in
   test_on_all (make_test f "verify inverse") "verify_inverse"
 
-(* module M (F : sig val coord_name : string end) : Coordinate.Memo_params =
-  struct
-    let status = `Needs_computation
-    let (^/) a b = a ^ "/" ^ b
-    let path = "/mnt/c/Users/brand/Documents/kocaml-cubing/test/lookup_tabels/coordinates"
-    let move_filepath = path ^/ "move" ^/ F.coord_name ^ "_move_table.sexp"
-    let symmetry_filepath = path ^/ "sym" ^/ F.coord_name ^ "_sym_table.sexp"
-  end *)
-
-(* module M_twist = M (struct let coord_name = "twist" end)
-module M_edge_perm = M (struct let coord_name = "edge_perm" end)
-
-module Twist_memo = Coordinate.Twist.Make_memoized_coordinate (M_twist)
-module Edge_perm_memo = Coordinate.Edge_perm.Make_memoized_coordinate (M_edge_perm) *)
-
 (**
   Tests that coordinates are well-defined under move sequences.
   i.e. checks that from a random starting permutation, moves on coordinates
@@ -284,6 +269,43 @@ let test_raw_phase2_coord_move_sequence =
     "corner perm"   >:: test_coord_move_sequence_phase2 (module C.Corner_perm.Raw);
   ]
 
+(* module M (F : sig val coord_name : string end) : Coordinate.Memo_params =
+  struct
+    let status = `Needs_computation
+    let (^/) a b = a ^ "/" ^ b
+    let path = "/mnt/c/Users/brand/Documents/kocaml-cubing/test/lookup_tabels/coordinates"
+    let move_filepath = path ^/ "move" ^/ F.coord_name ^ "_move_table.sexp"
+    let symmetry_filepath = path ^/ "sym" ^/ F.coord_name ^ "_sym_table.sexp"
+  end
+
+module M_twist = M (struct let coord_name = "twist" end)
+module M_edge_perm = M (struct let coord_name = "edge_perm" end)
+
+module Twist_memo = Coordinate.Twist.Make_memoized_coordinate (M_twist)
+module Edge_perm_memo = Coordinate.Edge_perm.Make_memoized_coordinate (M_edge_perm) *)
+
+module S : Coordinate.Sym_memo_params =
+  struct
+    let status = `Needs_computation
+    (* Current implementation doesn't save, so no filepaths needed *)
+    let move_filepath = ""
+    let class_to_rep_filepath = ""
+    let rep_to_class_filepath = ""
+  end
+
+(* module Flip_UD_slice_sym = Coordinate.Flip_UD_slice.Make_symmetry_coordinate (S) *)
+module Corner_perm_sym = Coordinate.Corner_perm.Make_symmetry_coordinate (S)
+
+(* let test_sym_phase1_coord_move_sequence =
+  "sym phase1 coord move sequences" >::: [
+    "flip ud slice" >:: test_coord_move_sequence_phase1 (module Flip_UD_slice_sym)
+  ] *)
+
+let test_sym_phase2_coord_move_sequence =
+  "sym phase2 coord move sequences" >::: [
+    "corner perm" >:: test_coord_move_sequence_phase2 (module Corner_perm_sym);
+  ]
+
 let cube_tests = "cube tests" >::: [
   test_coord_of_perm;
   (* These are commented out because they are exhaustive and slow *)
@@ -293,6 +315,8 @@ let cube_tests = "cube tests" >::: [
   test_move_sequence;
   test_raw_phase1_coord_move_sequence;
   test_raw_phase2_coord_move_sequence;
+  (* test_sym_phase1_coord_move_sequence; *)
+  test_sym_phase2_coord_move_sequence;
 ]
 
 let series = "series" >::: [
