@@ -7,6 +7,8 @@ This project is a work in progress. It is far from complete at the moment. Pleas
 
 This project is entirely my interpretation of Herbert Kociemba's description on [kociemba.org](http://kociemba.org/cube.htm). I do not refer to any code that implements the Two-Phase algorithm.
 
+Build with OCaml 5.0.0. Uses Core, ppx_jane, and OUnit2.
+
 ## Overview
 
 Here is a quick walk through the project. The goal of this section is to help a spontaneous viewer of this repo understand what this project is. I will give a very high level overview of the algorithm and then point you to a starting place to view the code.
