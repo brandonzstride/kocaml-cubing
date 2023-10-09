@@ -539,7 +539,7 @@ module Flip = Make (
       in
       function (* the return type is a function. Capture corners first and pipe edges through *)
       | Corner c -> Cubie.With_orientation.Corner { c ; o = Modular_int.Z3.zero } (* let corners be untouched *)
-      | Edge   _ as e -> go new_coord (List.rev Cubie.Edge.all) e  (* TODO: use next instead of all *)
+      | Edge   _ as e -> go new_coord (List.rev Cubie.Edge.all) e  (* TODO: use next instead of all for efficiency *)
   end
 ) 
 
@@ -648,12 +648,6 @@ module Flip_UD_slice = Make (
       end
 
     let n = UD_slice.Raw.n * Flip.Raw.n
-
-    (* 200000 => flip = 1344 ud_slice = 97 seems to fail to_perm.*)
-    (* seems like Move( * ) is wrong because mult of these too doesn't work. *)
-    (* I think issue will arrises from how I compare on edge when I should compare on facelet *)
-    (* I'm getting that it doesn't match any case, so then just goes to id. Better
-       is to failwith on logical impossibilities.*)
     
     (*
       `Flip.to_perm` preserves permutation but changes orientation,
