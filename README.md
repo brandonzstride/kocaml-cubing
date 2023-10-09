@@ -55,6 +55,7 @@ TODO urgent:
   * Or (for a quick spot-fix) remove the reflection symmetry; this only doubles the number of symmetry classes, which is not completely game-breaking.
 
 TODO eventually:
+* Improve speed of coordinates by using sequences instead of lists
 * Model a cube in `Cube` module and let moves and symmetries act on it.
 * Implement A*.
 * Implement pruning tables.
