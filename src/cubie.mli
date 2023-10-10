@@ -7,7 +7,7 @@
     The cubies are the "little cubes" on the Rubik's cube. They are
     corner pieces and edge pieces, and they are labeled with the faces
     of the cube they touch. For example, the URF cubie is the corner
-    on the up, right, and front faces of teh cube. A cubie has as
+    on the up, right, and front faces of the cube. A cubie has an
     orientation with respect to the solved state.
 
     To be extra clear: the cubie's orientation is defined as how many

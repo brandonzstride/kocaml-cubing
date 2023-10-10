@@ -6,8 +6,8 @@
   Detailed description:
     This module describes some move on the cube. These moves might be
     turns of the faces or compositions of faceturns. Arbitrary moves
-    as functions from cubies to cubies with orientation are supported
-    by the type but are not the intended purpose of this module.
+    are supported by the type as functions from cubies to cubies with
+    orientation, but they are not the intended purpose of this module.
     See the `Perm` module for such a purpose.
 
     A move uses the "is replaced by" notation: if a move is called f, then
