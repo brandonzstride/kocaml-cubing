@@ -90,6 +90,8 @@ module Make_memoized_coordinate (T : T) (M : Memo_params) : T =
     module Move_table = Lookup_table.Make2D (I) (Move.Fixed_move) (I)
     module Symmetry_table = Lookup_table.Make2D (I) (Symmetry) (I)
 
+    (** TODO: only let g1 generators be applied to phase2 coordinates.
+        This is motivation to split into phase1 and phase2 coordinates. *)
     let move_table =
       match M.status with
       | `Is_saved -> Move_table.from_file M.move_filepath

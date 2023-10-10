@@ -282,6 +282,7 @@ module M_twist = M (struct let coord_name = "twist" end)
 module M_edge_perm = M (struct let coord_name = "edge_perm" end)
 
 module Twist_memo = Coordinate.Twist.Make_memoized_coordinate (M_twist)
+(* Edge_perm_memo probably fails because it tries to memoize on all moves, not just g1 generators *)
 module Edge_perm_memo = Coordinate.Edge_perm.Make_memoized_coordinate (M_edge_perm) *)
 
 module S : Coordinate.Sym_memo_params =
