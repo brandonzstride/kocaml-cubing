@@ -29,7 +29,7 @@ To take a peek into the code, I suggest starting with the following files: `cubi
 
 Tested functionality:
 * Turns of the cube faces are consistent with the physical cube.
-  * They commute for arbitrary moves sequences.
+  * They compose for arbitrary moves sequences.
 * Coordinates are appropriately calculated and are invertible.
   * Coordinates cannot escape their scope.
   * Arbitrary sequences of moves on coordinates are consistent with the same moves on the "physical" cube representation.
