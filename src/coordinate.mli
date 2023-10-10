@@ -1,4 +1,22 @@
 (*
+  File: coordinate.mli
+  Module purpose: describes aspects of Rubik's cube with integers.
+  Status: nearly complete; symmetry coordinates need testing.
+
+  Detailed description:
+    This module holds all the coordinates that describe a cube. These
+    coordinates can be memoized for faster computation (so that a more
+    "physical" and computationally expensive representation of the cube
+    can be discarded) and converted to symmetry coordinates.
+
+    This module supports conversions between permutations and coordinates.
+    See `Perm` module.
+
+    More description and motivation is in another comment below. Definitions
+    of the coordinates are in the `coordinate.ml` file.
+*)
+
+(*
   What are coordinates?
   Coordinates are unique values assigned to some aspect of a cube's
   state. They help us succinctly describe a cube and focus on only one

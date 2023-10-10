@@ -1,8 +1,22 @@
-
 (*
-To check if a cube is well formed, just send perm to list of corners and edges,
-  and make sure both lists are odd or both lists are even.
-Must also check orientations. This can be done similarly to coordinates.   
+  File: perm_sgn.ml
+  Module purpose: permutation sign for checking if a cube is well-formed.
+  Status: incomplete.
+
+  Detailed description:
+    This module can be ignored for now.
+
+    This file holds some code I intend to use for verifying if a cube
+    is well-formed. Only even permutations of the cubies are achievable
+    by turns of the faces, so we can verify well-formedness by checking
+    the sign of the permutation.
+
+  Other considerations:
+    Maybe make this a "cube-checker" module that checks all properties
+    for well-formedness.
+    * permutation sign
+    * colors make real cube
+    * cubie orientations sum to zero mod n
 *)
 
 let sgn ls ~compare =

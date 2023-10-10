@@ -1,14 +1,23 @@
 (*
-  We use lookup tables to save results of computationally expensive operations.
-  Some of these operations are:
-  * Map coordinate and move to new coordinate
-  * Map coordinate and symmetry to new coordinate
-  * Map representative symmetry coordinate and move to new symmetry coordinate
-  * Map coordinate (potentially tuple of coordinate) to some integer
-  * Map two symmetries to new symmetry
+  File: lookup_table.mli
+  Module purpose: data structure for fast mappings on ranked types.
+  Status: complete.
 
-  The way we will represent this is by N-dimensional arrays, and each dimension has a to_rank function.
+  Detailed description:
+    A lookup table is a data structure that allows fast lookup of ranked types.
+    They use arrays, but the mutation is behind-the-scenes and the table is
+    only mutated upon creation. The user can treat the table as if it is
+    immutable.
 
+    These are used to:
+    * Map coordinate and move to a new coordinate
+    * Map coordinate and symmetry to new coordinate
+    * Map representative symmetry coordinate and move to new symmetry coordinate
+    * Map two symmetries to a new symmetry
+    * Store pruning tables.
+
+    The domain must have a `to_rank` function that takes an element of the domain
+    to a unique integer.
 *)
 
 module type Key =

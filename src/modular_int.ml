@@ -7,14 +7,10 @@ module type S = sig
   val ( + ) : t -> t -> t
   val ( * ) : t -> t -> t
   val inverse : t -> t
-  val int_equal : t -> int -> bool
-  val int_compare : t -> int -> int
   val equal : t -> t -> bool
   val compare : t -> t -> int
   val of_int : int -> t
   val to_int : t -> int
-  val inc : t -> t
-  val dec : t -> t
   val n : int
   val all : t list
   val zero : t
@@ -34,11 +30,7 @@ module Make (G : sig
   let ( * ) a b = (a * b) |> of_int
   let equal = Int.equal
   let compare = Int.compare
-  let int_equal = equal
-  let int_compare = compare
   let all = List.init n ~f:of_int
-  let inc x = Int.(+) 1 x |> of_int
-  let dec x = Int.(+) (-1) x |> of_int
   let zero = 0
 
 end

@@ -1,4 +1,20 @@
-(* This is a permutation of a cube. In reality, it can be represented as a move *)
+(*
+  File: perm.mli
+  Module purpose: represent an arbitrary unsolved Rubik's cube.
+  Status: complete.
+
+  Detailed description:
+    An arbitrary unsolved Rubik's cube is a permutation of the cubies
+    (with some orientation). This module represents such a cube as a
+    `Move.t`. This module does not consider how faceturns make up
+    such a cube, but it does allow faceturns to act on the cube.
+
+    The goal of this whole project is to find the inverse to a permutation
+    as a composition of faceturns.
+
+  Other considerations:
+    Maybe combine this with `Cube` under a submodule.
+*)
 
 type t = Move.t
 

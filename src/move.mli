@@ -1,11 +1,19 @@
 (*
+  File: move.mli
+  Module purpose: represents faceturns on the Rubik's cube, i.e. valid moves.
+  Status: complete.
 
-We use the "is replaced by" representation for moves on the cubie level.
+  Detailed description:
+    This module describes some move on the cube. These moves might be
+    turns of the faces or compositions of faceturns. Arbitrary moves
+    as functions from cubies to cubies with orientation are supported
+    by the type but are not the intended purpose of this module.
+    See the `Perm` module for such a purpose.
 
-So F(URF) = UFL means that what was in UFL will be moved to URF.
-
-A move will map every cubie on the cube to some other cubie with new orientation.
-   
+    A move uses the "is replaced by" notation: if a move is called f, then
+    f(URF) = (UFL, 1) means that the URF cubie position on the cube will get
+    replaced by the cubie that was in the UFL position, and it will gain
+    orientation 1.
 *)
 
 module T :

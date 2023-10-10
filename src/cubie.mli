@@ -1,3 +1,21 @@
+(*
+  File: cubie.mli
+  Module purpose: describes "sub-cubes"/"cubies" of the Rubik's cube.
+  Status: complete.
+
+  Detailed description:
+    The cubies are the "little cubes" on the Rubik's cube. They are
+    corner pieces and edge pieces, and they are labeled with the faces
+    of the cube they touch. For example, the URF cubie is the corner
+    on the up, right, and front faces of teh cube. A cubie has as
+    orientation with respect to the solved state.
+
+    To be extra clear: the cubie's orientation is defined as how many
+    clockwise twists its reference facelet is from the solved position
+    of the reference facelet. The reference facelet is the facelet that
+    makes up the first character of the cubie (e.g. "U" in the URF cubie).
+*)
+
 module T :
   sig
     module Corner :
