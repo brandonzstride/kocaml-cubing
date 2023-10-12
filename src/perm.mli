@@ -21,6 +21,7 @@ type t = Move.t
 val identity : t
 val is_identity : t -> bool
 val perform_move : t -> Move.t -> t (* Move is performed after permutation *) 
+val perform_fixed_move : t -> Move.Fixed_move.t -> t (* Fixed move is performed after the permutation *)
 val perform_fixed_move_list : t -> Move.Fixed_move.t list -> t (* Performs moves in the order given *)
 val of_move_list : Move.t list -> t (* earlier moves get performed first *)
 val to_corners_list : t -> Cubie.With_orientation.Corner.t list

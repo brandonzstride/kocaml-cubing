@@ -32,7 +32,7 @@ module Make1D (Key : Key) (R : Return_type) =
       |> sexp_of_t
       |> Sexp.save filename
 
-    let create (ls : 'a list) ~(f : 'a -> R.t) : t =
+    let create (ls : Key.t list) ~(f : Key.t -> R.t) : t =
       Array.of_list_map ls ~f
 
     let of_list (ls : R.t list) =
@@ -62,14 +62,19 @@ module Make2D (Key1 : Key) (Key2 : Key) (R : Return_type) =
       |> sexp_of_t
       |> Sexp.save filename
 
-    let create ?(n1 : int option) ?(n2 : int option) (l1 : 'a list) (l2 : 'b list) ~(f : 'a -> 'b -> R.t) : t =
+    (* let to_rank (table : t) (a : Key1.t) (b : Key2.t) : int =
+      (Key1.to_rank a) * table.n2 + Key2.to_rank b *)
+
+    let create ?(n1 : int option) ?(n2 : int option) (l1 : Key1.t list) (l2 : Key2.t list) ~(f : Key1.t -> Key2.t -> R.t) : t =
+      (* Maybe sort the lists by their rank first *)
       let get_n ls n = match n with None -> List.length ls | Some x -> x in
       let n1 = get_n l1 n1 in let n2 = get_n l2 n2 in
       let x = f (List.hd_exn l1) (List.hd_exn l2) in (* default value for array *)
       let arr = Array.create x ~len:(n1 * n2) in
       List.iteri l1 ~f:(fun i1 -> fun a ->
+        let offset = n2 * i1 in
         List.iteri l2 ~f:(fun i2 -> fun b ->
-          Array.set arr (n2 * i1 + i2) (f a b)
+          Array.set arr (offset + i2) (f a b)
         )
       );
       { arr ; n1 ; n2 }

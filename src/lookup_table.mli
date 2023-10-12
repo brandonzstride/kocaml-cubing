@@ -9,7 +9,7 @@
     only mutated upon creation. The user can treat the table as if it is
     immutable.
 
-    These are used to:
+  Expected usage:
     * Map coordinate and move to a new coordinate
     * Map coordinate and symmetry to new coordinate
     * Map representative symmetry coordinate and move to new symmetry coordinate
@@ -18,6 +18,7 @@
 
     The domain must have a `to_rank` function that takes an element of the domain
     to a unique integer.
+
 *)
 
 module type Key =
@@ -37,7 +38,7 @@ module Make1D (Key : Key) (R : Return_type) :
     val from_file : string -> t
     val to_file : t -> string -> unit
     val of_list : R.t list -> t
-    val create : 'a list -> f:('a -> R.t) -> t
+    val create : Key.t list -> f:(Key.t -> R.t) -> t
     val lookup : t -> Key.t -> R.t
     val get_n : t -> int
   end
@@ -47,6 +48,6 @@ module Make2D (Key1 : Key) (Key2 : Key) (R : Return_type) :
     type t
     val from_file : string -> t
     val to_file : t -> string -> unit
-    val create : ?n1:int -> ?n2:int -> 'a list -> 'b list -> f:('a -> 'b -> R.t) -> t
+    val create : ?n1:int -> ?n2:int -> Key1.t list -> Key2.t list -> f:(Key1.t -> Key2.t -> R.t) -> t
     val lookup : t -> Key1.t -> Key2.t -> R.t
   end

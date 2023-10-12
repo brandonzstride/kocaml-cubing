@@ -3,6 +3,16 @@
   if the code is correct.   
 *)
 
+(*
+  IMPORTANT NOTE:
+    I currently dont' use the reflection symmetry because it will involve
+    a significant change in how I represent moves.
+
+    All the code is commented out and kept in place for the reflection.
+    I make a special note for code that is added or changed to accomodate
+    the removal of the reflection.
+*)
+
 
 open Core
 
@@ -16,8 +26,7 @@ module Generator =
       S_U4  : 90 degree clockwise turn around axis through U and D faces. Order 4.
       S_LR2 : reflection across the plane between the L and R faces. Order 2.
     *)
-    type t = S_F2 | S_U4 | S_LR2
-
+    type t = S_F2 | S_U4 (* | S_LR2 *) (* Spot-fix: remove the reflection *)
 
     let to_move : t -> Move.t =
     let open Cubie in
@@ -51,7 +60,7 @@ module Generator =
         | DFR -> DRB | DLF -> DFR | DBL -> DLF | DRB -> DBL end
         in With_orientation.Corner { c = c' ; o = Z3.zero }
       end
-    | S_LR2 -> begin function
+    (* | S_LR2 -> begin function
       | Edge e ->
         let e' = begin match e with
         | UR -> UL | UL -> UR | FR -> FL | FL -> FR
@@ -61,10 +70,10 @@ module Generator =
         let c' = begin match c with
         | URF -> UFL | UFL -> URF | UBR -> ULB | ULB -> UBR
         | DFR -> DLF | DLF -> DFR | DBL -> DRB | DRB -> DBL end
-        in With_orientation.Corner { c = c' ; o = Z3.zero } 
+        in With_orientation.Corner { c = c' ; o = Z3.zero }  *)
         (* S_LR2 should apply additive inverse to orientation if corner orientations matter *)
         (* TODO: come up with a type so that symmetries can work for corner orientation coordinates *)
-      end
+      (* end *)
   end
 
 module Multiples =
@@ -89,7 +98,7 @@ module Multiples =
     function
     | { gen = S_F2  ; count } when count < 2 -> aux S_F2  count
     | { gen = S_U4  ; count } when count < 4 -> aux S_U4  count
-    | { gen = S_LR2 ; count } when count < 2 -> aux S_LR2 count
+    (* | { gen = S_LR2 ; count } when count < 2 -> aux S_LR2 count *)
     | _ -> failwith "bad symmetry multiple"
   end
 
@@ -106,38 +115,39 @@ module S =
     type t =
       { x_2 : Modular_int.Z2.t
       ; x_3 : Modular_int.Z4.t
-      ; x_4 : Modular_int.Z2.t } [@@deriving enumerate]
+      (*; x_4 : Modular_int.Z2.t *) } [@@deriving enumerate]
 
-    let to_rank { x_2 ; x_3 ; x_4 } =
-      Modular_int.(Z2.to_int x_2 * 8 + Z4.to_int x_3 * 2 + Z2.to_int x_4)
+    let to_rank { x_2 ; x_3 (*; x_4 *) } =
+      let open Modular_int in
+      (* Z2.to_int x_2 * 8 + Z4.to_int x_3 * 2 + Z2.to_int x_4 *)
+      (* The original code above is changed to the below to not consider the final term *)
+      Z2.to_int x_2 * 4 + Z4.to_int x_3
     
-    let n = List.length all (* should be 16 *)
+    let n = List.length all (* should be 16 (8 with no reflection) *)
 
     let of_rank x =
-      Modular_int.(
-        { x_2 = Z2.of_int (x / 8)
-        ; x_3 = Z4.of_int ((x mod 8) / 2)
-        ; x_4 = Z2.of_int x }
-      )
+      let open Modular_int in
+      (* { x_2 = Z2.of_int (x / 8)
+      ; x_3 = Z4.of_int ((x mod 8) / 2)
+      ; x_4 = Z2.of_int x } *)
+      (* The original code above is changed to the below to not consider the final term *)
+      { x_2 = Z2.of_int (x / 4)
+      ; x_3 = Z4.of_int (x mod 4) }
     
-    (* let next x =
-      let x' = to_rank x + 1 in
-      if x' = n then None else Some (of_rank x') *)
-
     (* must be careful on S_LR2 *)
     let to_move (s : t) : Move.t =
       let open Move in
       Multiples.(
           to_move { gen = S_F2  ; count = Modular_int.Z2.to_int s.x_2 }
         * to_move { gen = S_U4  ; count = Modular_int.Z4.to_int s.x_3 }
-        * to_move { gen = S_LR2 ; count = Modular_int.Z2.to_int s.x_4 }
+        (* * to_move { gen = S_LR2 ; count = Modular_int.Z2.to_int s.x_4 } *)
       )
 
     (*
       IMPORTANT NOTE:
         Corner orientations are not correct under symmetries. However, no
         symmetry *only* orients the corner cubies. In fact, only permutations
-        matter for cube symmetries.
+        matter for comparisons of cube symmetries.
 
       With this note in mind, I can explain how we find the products and inverses
       of permutations. Since permutations don't commute, it's not as simple as
@@ -168,7 +178,7 @@ module S =
     let on_perm (s : t) (p : Perm.t) : Perm.t =
       Move.(to_move s * p * to_move (inverse s))
 
-    let on_move (s : t) (m : Move.Fixed_move.t) : Move.Fixed_move.t = 
+    let on_fixed_move (s : t) (m : Move.Fixed_move.t) : Move.Fixed_move.t = 
       let open Move in
       let m' = to_move s * Fixed_move.to_move m * to_move (inverse s) in
       List.find Fixed_move.all ~f:(fun a -> equal_without_orientation (Fixed_move.to_move a) m')
@@ -222,8 +232,9 @@ let on_perm x =
 
 module Sym_move_table = Lookup_table.Make2D (I) (Move.Fixed_move) (Move.Fixed_move)
 
-let on_move =
-  Sym_move_table.create all Move.Fixed_move.all ~f:(fun x m -> let s = S.of_rank x in S.on_move s m)
+let on_fixed_move =
+  (* bug caused by all is not in same order as rank *)
+  Sym_move_table.create all Move.Fixed_move.all ~f:(fun x m -> let s = S.of_rank x in S.on_fixed_move s m)
   |> Sym_move_table.lookup
 
-
+let random () = Random.int n

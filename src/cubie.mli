@@ -14,6 +14,10 @@
     clockwise twists its reference facelet is from the solved position
     of the reference facelet. The reference facelet is the facelet that
     makes up the first character of the cubie (e.g. "U" in the URF cubie).
+
+  Expected usage:
+    Moves and coordinates need to interact directly with cubiess. This
+    module satisfies the need to work hands-on with the raw cube.
 *)
 
 module T :

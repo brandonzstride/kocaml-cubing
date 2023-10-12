@@ -285,6 +285,106 @@ module Twist_memo = Coordinate.Twist.Make_memoized_coordinate (M_twist)
 (* Edge_perm_memo probably fails because it tries to memoize on all moves, not just g1 generators *)
 module Edge_perm_memo = Coordinate.Edge_perm.Make_memoized_coordinate (M_edge_perm) *)
 
+(*
+  ---------------
+  TEST SYMMETRIES   
+  ---------------
+
+  I need to verify that symmetries work as expected before I use them for symmetry
+  coordinates.
+
+  I'll test by making sure that a few "random" moves are appropriately converted by
+  symmetries. I say "random" because I'll just choose some that feel representative.
+
+  Then I'll perform a symmetry on a cube, do all the moves, undo the symmetry, and
+  make sure it's consistent with the cube under the same moves without the symmetry.
+  e.g.
+    permutation p, move sequence m_1, ..., m_n, symmetry s.
+    s * p * s^-1   |->   perform moves m_1, ..., m_n   |->   fun p' -> s^-1 * p' * s
+    This should be exactly
+    p * s^-1 * m_1 * ... * m_n * s
+    And it should have the same result as applying all moves under inverse symmetry
+    applied to just p.
+
+
+  I want to be able to apply a sequence of moves to a cube until that cube is symmetric
+  to the solved cube. Then I am told which symmetry converts it to the solved cube.
+  Then apply that symmetry to all the moves so that I have a new sequence of moves
+  that takes the original cube directly to the solved state.
+  e.g.
+    The original perm was p, and a move sequence m_1, ..., m_n is applied, and then
+    I know a symmetry s takes the result to the solved state.
+    i.e.
+      s * (p * m_1 * ... * m_n) * s^-1 = solved
+    where zero means it is solved.
+    We want
+      p * m'_1 * ... * m'_n = solved
+    
+    s^-1 * s * p * m_1 * ... * m_n * s^-1 * s = s^-1 * solved * s
+
+  So actually I'm misunderstanding the problem. We have a cube that is symmetry to the
+  smallest cube in its symmetry class.
+
+  All cubes in a symmetry class have the same distance from the goal state. We can only
+  see the moves that affect the representative, which are not the same as the moves
+  that we're actually dealing with and wanting to apply to the perm at hand.
+
+  So s * p * s^-1 is the representative. And we know that applying move m takes it closer
+  to the goal. Which move do we actually apply to the underlying cube?
+  s * p * s^-1 * m = p'
+  p * s^-1 * m * s = s^-1 * p' * s
+  So I need to make sure that when I apply m to a cube under a symmetry, that is the same
+  as applying the inverse symmetry to the move and applying inverse symmetry to result.
+
+  What's going to happen with symmetry coordinates is that the user only knows which
+  symmetry class a cube is in and if that's the solved class. Then the symmetry is
+  extracted from that solved class.
+
+*)
+
+let test_move_symmetries =
+  let sf2 = Symmetry.of_rank 4 in
+  let su4 = Symmetry.of_rank 1 in
+  let max = Symmetry.of_rank 7 in (* S_F2 * S_U4^3 *)
+  let compare_sym_move (m : (Move.Faceturn.t * int)) (s : Symmetry.t) (m' : (Move.Faceturn.t * int)) _ : unit =
+    let m = Move.Fixed_move.{ faceturn = Tuple2.get1 m ; count = Modular_int.Z4.of_int (Tuple2.get2 m) } in
+    let m' = Move.Fixed_move.{ faceturn = Tuple2.get1 m' ; count = Modular_int.Z4.of_int (Tuple2.get2 m') } in
+    assert_equal (Symmetry.on_fixed_move s m) m'
+  in
+  let open Move.Faceturn in
+  "Symmetry move equivalence tests" >::: [
+    "S_F2 U"  >:: compare_sym_move (U, 1) sf2 (D, 1);
+    "S_F2 R3" >:: compare_sym_move (R, 3) sf2 (L, 3);
+    "S_F2 B"  >:: compare_sym_move (B, 1) sf2 (B, 1);
+    "S_U4 R"  >:: compare_sym_move (R, 1) su4 (B, 1);
+    "S_U4 U"  >:: compare_sym_move (U, 1) su4 (U, 1);
+    "S_U4 L2" >:: compare_sym_move (L, 2) su4 (F, 2);
+    "max R"   >:: compare_sym_move (R, 1) max (F, 1);
+    "max U"   >:: compare_sym_move (U, 1) max (D, 1);
+    "max B3"  >:: compare_sym_move (B, 3) max (R, 3);
+  ]
+
+let test_sym_moves_on_perm =
+  (* Try this on random perms with random moves and random symmetries *)
+  let run_trial (p : Perm.t) (m : Move.Fixed_move.t) (s : Symmetry.t) : unit =
+    let p' = p |> Symmetry.on_perm s |> Fn.flip Perm.perform_fixed_move m in
+    let p'' = s |> Symmetry.inverse |> Fn.flip Symmetry.on_fixed_move m |> Perm.perform_fixed_move p in
+    assert_equal p'' (Symmetry.on_perm (Symmetry.inverse s) p')
+  in
+  "Fixed moves under symmetry on perm" >:: 
+    begin fun _ ->
+    List.fold
+      (List.init 1000 ~f:(fun _ -> ()))
+      ~init:()
+      ~f:(fun _ _ ->
+        let p = Move.Fixed_move.random_list 40 |> Perm.perform_fixed_move_list Perm.identity in (* 40 moves to generate random perm *)
+        let m = Move.Fixed_move.random_list 1 |> List.hd_exn in
+        let s = Symmetry.random () in
+        run_trial p m s 
+      )
+    end
+
+
 module S : Coordinate.Sym_memo_params =
   struct
     let status = `Needs_computation
@@ -295,17 +395,17 @@ module S : Coordinate.Sym_memo_params =
   end
 
 (* module Flip_UD_slice_sym = Coordinate.Flip_UD_slice.Make_symmetry_coordinate (S) *)
-module Corner_perm_sym = Coordinate.Corner_perm.Make_symmetry_coordinate (S)
+(* module Corner_perm_sym = Coordinate.Corner_perm.Make_symmetry_coordinate (S) *)
 
 (* let test_sym_phase1_coord_move_sequence =
   "sym phase1 coord move sequences" >::: [
     "flip ud slice" >:: test_coord_move_sequence_phase1 (module Flip_UD_slice_sym)
   ] *)
 
-let test_sym_phase2_coord_move_sequence =
+(* let test_sym_phase2_coord_move_sequence =
   "sym phase2 coord move sequences" >::: [
     "corner perm" >:: test_coord_move_sequence_phase2 (module Corner_perm_sym);
-  ]
+  ] *)
 
 let cube_tests = "cube tests" >::: [
   test_coord_of_perm;
@@ -316,6 +416,8 @@ let cube_tests = "cube tests" >::: [
   test_move_sequence;
   test_raw_phase1_coord_move_sequence;
   test_raw_phase2_coord_move_sequence;
+  test_move_symmetries;
+  test_sym_moves_on_perm;
   (* test_sym_phase1_coord_move_sequence; *)
   (* test_sym_phase2_coord_move_sequence; *) (* fails *)
 ]

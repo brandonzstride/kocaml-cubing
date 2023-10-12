@@ -198,7 +198,7 @@ module Sym_base_of_raw (T : T) : Sym_base =
       symmetry is S' * S.
     *)
     let perform_fixed_move (x : t) (m : Move.Fixed_move.t) : t =
-      let m' = Symmetry.on_move x.sym m in
+      let m' = Symmetry.on_fixed_move x.sym m in
       let y = Raw.perform_fixed_move x.rep m' |> of_raw in
       { rep = y.rep ; sym = Symmetry.mult y.sym x.sym }
       (** ^ not updated for when left is applied first in mult,
@@ -348,7 +348,7 @@ module Make_symmetry_coordinate (S : Sym_base) (M : Sym_memo_params) =
     *)
     let perform_fixed_move (x : t) (m : Move.Fixed_move.t) : t =
       let s1 = get_symmetry x in
-      let m' = Symmetry.on_move s1 m in
+      let m' = Symmetry.on_fixed_move s1 m in
       let y = Move_table.lookup move_table x m' in (* resulting sym coord in rep sym coord for x *)
       let s2 = get_symmetry y in  
       (y |> to_rank |> of_rank) + (Symmetry.mult s2 s1 |> Symmetry.to_rank)

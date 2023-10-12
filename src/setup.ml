@@ -12,4 +12,9 @@
 
     This is an executable that performs all setup so that afterwards,
     the solver is ready to run.
+
+  Other considerations:
+    The solver executable should load all necessary tables into
+    memory before accepting a cube as input. I'm placing this note
+    here until I make a solver executable.
 *)

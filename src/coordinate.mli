@@ -14,6 +14,10 @@
 
     More description and motivation is in another comment below. Definitions
     of the coordinates are in the `coordinate.ml` file.
+
+  Expected usage:
+    The `Cube` module uses a record of some coordinates to holistically
+    represent a cube. Other modules need not refer to coordinates directly.
 *)
 
 (*
@@ -120,6 +124,8 @@ module UD_slice      : Coordinate (* only exposed for testing *)
 module Flip_UD_slice : Coordinate
 
 (* Phase 2 coordinates *)
+(* Note that these are defined for moves outside of the G1 generators *)
+(* TODO: restrict fixed moves to only be G1 generators *)
 module Edge_perm     : Coordinate
 module Corner_perm   : Coordinate
 module UD_slice_perm : Coordinate

@@ -33,6 +33,7 @@ Tested functionality:
 * Coordinates are appropriately calculated and are invertible.
   * Coordinates cannot escape their scope.
   * Arbitrary sequences of moves on coordinates are consistent with the same moves on the "physical" cube representation.
+* Note that since coordinates work, I could choose ignore symmetry coordinates and get a working solver very quickly by memoizing all their behavior and computing pruning tables.
 
 Untested functionality:
 * Symmetries.
@@ -46,6 +47,7 @@ TODO urgent:
   * Or (for a quick spot-fix) remove the reflection symmetry; this doubles the number of symmetry classes, which is not completely game-breaking.
 
 TODO eventually:
+* Formally restrict Phase2 coordinates to only G1 generator moves.
 * Improve speed of coordinates by using sequences instead of lists
   * This might not improve speed much because I only reference a list that is initialized once, so it is effectively a sequence already.
 * Model a cube in `Cube` module and let moves and symmetries act on it.
@@ -55,7 +57,9 @@ TODO eventually:
 * Implement repeated search for worse phase1 result and better phase2 result.
 * Create setup executable to calculate tables.
 * Use config for table locations and setup state.
+* opam file and "how to run" instructions
 * Front end?
+* See about reducing table sizes by only memoizing the generators so that less memory is needed but just slightly more computation. It wouldn't be hard to "apply all moves" given only the generators.
 * And probably lots more.
 
 Status updates:

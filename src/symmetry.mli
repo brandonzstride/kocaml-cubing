@@ -15,6 +15,10 @@
     The implementation is very hidden, and the symmetries are memoized
     upon startup. The space of symmetries is small, so this memoization
     is extremely fast.
+
+  IMPORTANT NOTE:
+    I currently don't use the reflection. In the long-run, I would like
+    to use it.
 *)
 
 type t
@@ -24,10 +28,11 @@ val inverse : t -> t
 (* how a symmetry s acts on a perm p by s * p * s^-1 *)
 val on_perm : t -> Perm.t -> Perm.t
 (* How a symmetry s acts on a move m by s * m * s^-1 *)
-val on_move : t -> Move.Fixed_move.t -> Move.Fixed_move.t
+val on_fixed_move : t -> Move.Fixed_move.t -> Move.Fixed_move.t
 val to_rank : t -> int
 val of_rank : int -> t
 val n : int
 val next : t -> t option
 val zero : t
 val all : t list
+val random : unit -> t (* for testing *)
