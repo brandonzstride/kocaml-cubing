@@ -1,12 +1,12 @@
-; (test
-;  (name tests)
-;  (libraries 
-;   core
-;   ounit2
-;   coordinate
-;   move
-;   perm
-;   cubie
-;   core_unix)
-;   (preprocess
-;   (pps ppx_jane)))
+(test
+ (name tests)
+ (libraries 
+  core
+  ounit2
+  coordinate
+  move
+  perm
+  cubie
+  core_unix)
+  (preprocess
+  (pps ppx_jane)))

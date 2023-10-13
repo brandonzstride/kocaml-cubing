@@ -252,7 +252,7 @@ module G1_fixed_move : Fixed_move =
         | D -> Modular_int.Z4.to_int x.count + 2 (* offset by 3 because of U, then must subtract 1 from count *)
         | _ -> failwith "logically impossible"
         end
-      | Double x -> Int.(6 + Faceturn.Variants.to_rank x.faceturn) 
+      | Double x -> Int.(4 + Faceturn.Variants.to_rank x.faceturn)  (* offset by 6 for U,D ranks, then minus 2 for their variant rank *)
 
     let all = 
       let is_nonzero_count = function
