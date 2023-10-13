@@ -33,6 +33,7 @@ Tested functionality:
 * Coordinates are appropriately calculated and are invertible.
   * Coordinates cannot escape their scope.
   * Arbitrary sequences of moves on coordinates are consistent with the same moves on the "physical" cube representation.
+* Corner perm symmetry coordinate 
 * Note that since coordinates work, I could choose ignore symmetry coordinates and get a working solver very quickly by memoizing all their behavior and computing pruning tables.
 
 Untested functionality:

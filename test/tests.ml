@@ -298,48 +298,24 @@ module Edge_perm_memo = Coordinate.Edge_perm.Make_memoized_coordinate (M_edge_pe
 
   Then I'll perform a symmetry on a cube, do all the moves, undo the symmetry, and
   make sure it's consistent with the cube under the same moves without the symmetry.
-  e.g.
-    permutation p, move sequence m_1, ..., m_n, symmetry s.
-    s * p * s^-1   |->   perform moves m_1, ..., m_n   |->   fun p' -> s^-1 * p' * s
-    This should be exactly
-    p * s^-1 * m_1 * ... * m_n * s
-    And it should have the same result as applying all moves under inverse symmetry
-    applied to just p.
-
-
-  I want to be able to apply a sequence of moves to a cube until that cube is symmetric
-  to the solved cube. Then I am told which symmetry converts it to the solved cube.
-  Then apply that symmetry to all the moves so that I have a new sequence of moves
-  that takes the original cube directly to the solved state.
-  e.g.
-    The original perm was p, and a move sequence m_1, ..., m_n is applied, and then
-    I know a symmetry s takes the result to the solved state.
-    i.e.
-      s * (p * m_1 * ... * m_n) * s^-1 = solved
-    where zero means it is solved.
-    We want
-      p * m'_1 * ... * m'_n = solved
-    
-    s^-1 * s * p * m_1 * ... * m_n * s^-1 * s = s^-1 * solved * s
-
-  So actually I'm misunderstanding the problem. We have a cube that is symmetry to the
-  smallest cube in its symmetry class.
-
-  All cubes in a symmetry class have the same distance from the goal state. We can only
-  see the moves that affect the representative, which are not the same as the moves
-  that we're actually dealing with and wanting to apply to the perm at hand.
-
-  So s * p * s^-1 is the representative. And we know that applying move m takes it closer
-  to the goal. Which move do we actually apply to the underlying cube?
-  s * p * s^-1 * m = p'
-  p * s^-1 * m * s = s^-1 * p' * s
-  So I need to make sure that when I apply m to a cube under a symmetry, that is the same
-  as applying the inverse symmetry to the move and applying inverse symmetry to result.
-
-  What's going to happen with symmetry coordinates is that the user only knows which
-  symmetry class a cube is in and if that's the solved class. Then the symmetry is
-  extracted from that solved class.
-
+  Specifically, here is the way this will work:
+    Take a random permutation p, some random move m, and a random symmetry s.
+    We apply the symmetry to the perm, and then the move to that:
+      s * p * s^-1 * m =: p'
+    The other way is to take the original perm and apply a symmetry to the move:
+      p * s^-1 * m * s =: p''
+    We should see that s^-1 * p' * s = p''.
+  This test is just some mathematical identities that should cancel, but the code
+  doesn't recognize that it cancels, so we let it run it all through and check at the
+  end that it worked.
+  
+  We can expand this to move lists:
+      s * p * s^-1 * m_1 * ... * m_n =: p'
+    and
+      p * s^-1 * m_1 * s * s^-1 * m_2 * s * ... * s^-1 * m_n * s =: p''
+    where again
+      s^-1 * p' * s = p''
+  
 *)
 
 let test_move_symmetries =
@@ -366,17 +342,17 @@ let test_move_symmetries =
 
 let test_sym_moves_on_perm =
   (* Try this on random perms with random moves and random symmetries *)
-  let run_trial (p : Perm.t) (m : Move.Fixed_move.t) (s : Symmetry.t) : unit =
-    let p' = (* s^-1 * s * p * s^-1 * m * s *)
+  let run_trial (p : Perm.t) (ls : Move.Fixed_move.t list) (s : Symmetry.t) : unit =
+    let s' = Symmetry.inverse s in
+    let p' =
       p
       |> Symmetry.on_perm s
-      |> Fn.flip Perm.perform_fixed_move m
-      |> Symmetry.on_perm (Symmetry.inverse s)
+      |> Fn.flip Perm.perform_fixed_move_list ls
+      |> Symmetry.on_perm s'
       in
-    s
-    |> Symmetry.inverse
-    |> Fn.flip Symmetry.on_fixed_move m
-    |> Perm.perform_fixed_move p (* p * s^-1 * m * s *)
+    ls
+    |> List.map ~f:(Symmetry.on_fixed_move s')
+    |> Perm.perform_fixed_move_list p
     |> Move.equal p'
     |> assert_equal true
   in
@@ -386,12 +362,24 @@ let test_sym_moves_on_perm =
       (List.init 1000 ~f:(Fn.const ()))
       ~f:(fun _ ->
         let p = Move.Fixed_move.random_list 40 |> Perm.perform_fixed_move_list Perm.identity in (* 40 moves to generate random perm *)
-        let m = Move.Fixed_move.random_list 1 |> List.hd_exn in
+        let ls = Move.Fixed_move.random_list 20 in
         let s = Symmetry.random () in
-        run_trial p m s 
+        run_trial p ls s 
       )
     end
 
+  
+(*
+  -------------------------
+  TEST SYMMETRY COORDINATES
+  -------------------------
+
+  Now that symmetries are all tested and appear to work, it's time to test symmetry coordinates.
+  We need to assert that move sequences on a regular cube are consistent with move sequences
+  on a symmetry coordinate.
+
+  We can do this in the same way as we tested raw coordinates. See the tests above for explanation.
+*)
 
 module S : Coordinate.Sym_memo_params =
   struct
@@ -402,6 +390,7 @@ module S : Coordinate.Sym_memo_params =
     let rep_to_class_filepath = ""
   end
 
+(* This is commented because it is very slow. I don't know how long it takes, but it's LONG *)
 (* module Flip_UD_slice_sym = Coordinate.Flip_UD_slice.Make_symmetry_coordinate (S) *)
 module Corner_perm_sym = Coordinate.Corner_perm.Make_symmetry_coordinate (S)
 
