@@ -3,13 +3,13 @@ An OCaml implementation of the Kociemba Two-Phase algorithm.
 
 ## Notices
 
-This project is a work in progress. Please do not expect it to do anything meaningful for the time being. Refer to the **Status** section below to see what works. (Update: it does do very meaningful this, but it doesn't solve a cube yet!)
+This project is a work in progress. There is meaningful functionality, but please do not expect it to solve a cube yet. Refer to the **Status** section below to see what works.
 
 **This project is entirely my interpretation of Herbert Kociemba's explanation on [kociemba.org](http://kociemba.org/cube.htm)**. I do not refer to any code that implements the Two-Phase algorithm. I give credit for the ideas behind the algorithm to Herbert Kociemba. Implementation details are all my own, and I will note my algorithmic additions in this README.
 
 Written in `OCaml 5.0.0`. Depends on `Core`, `ppx_jane`, and `OUnit2`.
 
-This project adheres to functional standards and uses no mutation **except when contained under the hood of a module and can appear to be completely functional**. I use `Core` for stronger types than `Base` or `Batteries`. Exceptions are used for logical impossibilities and are only thrown if there is a mistake in the code logic.
+This project adheres to functional standards and uses no mutation **except when contained under the hood of a module and can appear to be completely functional**. I use `Core` for stronger types than `Base` or `Batteries`. Exceptions are used for logical impossibilities and are only thrown if there is a mistake in the code logic; they are never intentionally caught as an implementation choice.
 
 ## Overview
 
@@ -17,7 +17,7 @@ Here is a quick walk through the project. The goal of this section is to help a 
 
 The Kociemba Two-Phase algorithm finds a solution to a Rubik's cube in 30 moves or less. It represents a cube by *coordinates*. A coordinate is an integer that uniquely describes some aspect of the cube. For example, the Twist coordinate describes how each corner of the cube is oriented, but not where it is positioned. One coordinate for each aspect of the cube lets us represent a cube entirely by a few integers. The goal is to find a short sequence of moves that brings each coordinate to the solved state. There are two phases of the algorithm, and each phase tries to bring a different set of coordinates to the solved state, where the second phase does not disrupt the solution to the first.
 
-(What are symmetries) Because the space of coordinates is large, we choose to reduce the size of the space via symmetries of the cube. A *symmetry coordinate* is a description of the coordinate after it's been reduced by symmetries.
+Because the space of coordinates is large, we choose to reduce the size of the space via symmetries of the cube. Two cubes are symmetric if one is a rotation of the other, so they are equally far from the goal state.. A *symmetry coordinate* is a description of the coordinate after it's been reduced by symmetries.
 
 Once the cube is fully represented by coordinates, we can perform a graph search for the goal state of each phase--the goal state of phase 2 is the solved state of the cube. We use A* for this graph search where the heuristic is a precomputed path length to solve some of the coordinates in that phase.
 
@@ -25,11 +25,15 @@ That's the 20,000 foot picture: represent the cube with some integers and search
 
 To take a peek into the code, I suggest starting with the following files: `cubie.mli`, `move.mli` and `coordinate.mli`. Note the module descriptions at the top of the files, and then look at the signatures. Afterwards, look at `coordinate.ml` for some of my more significant work.
 
-(file flow? like dune in english)
-
 ## Status
 
-Tested functionality:
+**Summary**:
+
+Cubes are fully represented by coordinates and are reduced by symmetry classes. This means the foundation is layed to begin working on the search part of the algorithm.
+
+---
+
+**Tested functionality**:
 * Turns of the cube faces are consistent with the physical cube.
   * They compose for arbitrary moves sequences.
 * Rotational symmetries are physically consistent.

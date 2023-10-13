@@ -1,3 +1,33 @@
+(*
+  File: coordinate.ml   
+
+  How to approach this file:
+    Note a few things:
+    * The necessary module types are first copied from coordinate.mli.
+    * Some functors are defined that will help create the modules to
+      eventually satisfy the mli.
+    * The coordinates are described simply as conversions to and from
+      permutations, and the above functors fill in the rest.
+
+    Memoized coordinates:
+    Before any coordinates are defined, I can make a functor to memoize
+    a module of type T. This is trivial and requires only creating lookup
+    tables.
+
+    Symmetry coordinates:
+    I create a Sym_base module to act as an intermediate layer between
+    a raw coordinate and a symmetry coordinate. It helps ease the transition
+    between the two by providing partial functionality and a similar representation
+    to the full symmetry coordinate. Then, I use this to appropriately implement
+    the Make_symmetry_coordinate functor.
+
+    Raw coordinates:
+    Read the comments above each coordinate for its definition. Another comment
+    above each function attempts to explain the process because the code might
+    be difficult to jump into due to the nature of the definitions.
+*)
+
+
 open Core
 
 exception LogicallyImpossible of string
