@@ -9,7 +9,7 @@ This project is a work in progress. Please do not expect it to do anything meani
 
 Written in `OCaml 5.0.0`. Depends on `Core`, `ppx_jane`, and `OUnit2`.
 
-This project adheres to functional standards and uses no mutation **except when contained under the hood of a module and can appear to be completely functional**. I use `Core` for stronger types than `Base` or `Batteries`.
+This project adheres to functional standards and uses no mutation **except when contained under the hood of a module and can appear to be completely functional**. I use `Core` for stronger types than `Base` or `Batteries`. Exceptions are used for logical impossibilities and are only thrown if there is a mistake in the code logic.
 
 ## Overview
 

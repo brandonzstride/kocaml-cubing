@@ -1,11 +1,6 @@
 (*
-  All `failwith` calls in the file should be logically impossible
-  if the code is correct.   
-*)
-
-(*
   IMPORTANT NOTE:
-    I currently dont' use the reflection symmetry because it will involve
+    I currently don't use the reflection symmetry because it will involve
     a significant change in how I represent moves.
 
     All the code is commented out and kept in place for the reflection.
@@ -13,6 +8,7 @@
     the removal of the reflection.
 *)
 
+exception LogicallyImpossible of string
 
 open Core
 
@@ -83,7 +79,6 @@ module Multiples =
     *)
     type t = { gen : Generator.t ; count : int }
 
-    (* must be careful on S_LR2 because it's currently wrong *)
     let to_move =
       let open Generator in
       let open Move in
@@ -93,13 +88,14 @@ module Multiples =
         | 0 -> Move.id
         | 1 -> m 
         | 2 -> m * m
-        | _ -> m * m * m (* logically must be 3 by pattern match below *)
+        | 3 -> m * m * m
+        | _ -> raise (LogicallyImpossible "symmetry generator count exceeds expected range (0..3)")
       in
-    function
-    | { gen = S_F2  ; count } when count < 2 -> aux S_F2  count
-    | { gen = S_U4  ; count } when count < 4 -> aux S_U4  count
+    function (* this pattern match implies the logical impossibility above *)
+    | { gen = S_F2 ; count } when count < 2 -> aux S_F2  count
+    | { gen = S_U4 ; count } when count < 4 -> aux S_U4  count
     (* | { gen = S_LR2 ; count } when count < 2 -> aux S_LR2 count *)
-    | _ -> failwith "bad symmetry multiple"
+    | _ -> raise (LogicallyImpossible "unimplemented generator in symmetry multiple")
   end
 
 module S =
@@ -143,37 +139,22 @@ module S =
         (* * to_move { gen = S_LR2 ; count = Modular_int.Z2.to_int s.x_4 } *)
       )
 
-    (*
-      IMPORTANT NOTE:
-        Corner orientations are not correct under symmetries. However, no
-        symmetry *only* orients the corner cubies. In fact, only permutations
-        matter for comparisons of cube symmetries.
-
-      With this note in mind, I can explain how we find the products and inverses
-      of permutations. Since permutations don't commute, it's not as simple as
-      inverting and multiplying the generators. Instead, I convert the symmetry
-      to a move on the cubies, multiply the moves, and find the symmetry that
-      gives the equivalent move.
-
-      However, since orientations don't work with the natural representation of
-      moves, I must ignore the orientation. This is okay because any symmetry
-      that moves the cubies appropritately would also orient them appropriately.
-    *)
     let mult (s1 : t) (s2 : t) : t =
       (* Symmetries don't commute, so I'll have to convert to moves and compare moves *)
       let m = Move.(to_move s1 * to_move s2) in
-      List.find all ~f:(fun a -> Move.equal_without_orientation (to_move a) m)
+      List.find all ~f:(fun a -> Move.equal (to_move a) m)
       |> function
         | Some s -> s
-        | None -> failwith "could not find equivalent symmetry for multiplication"
+        | None -> raise (LogicallyImpossible "there is no equivalent symmetry for symmetry product")
 
     let inverse (s : t) : t =
       let m = to_move s in
-      (** Assume that right inverses are sufficient, and don't need left inverse *)
-      List.find all ~f:(fun a -> Move.(equal_without_orientation (m * to_move a) Move.id))
+      all
+      |> List.filter ~f:(fun a -> Move.(equal (m * to_move a) Move.id)) (* filter to only right inverses *)
+      |> List.filter ~f:(fun a -> Move.(equal (to_move a * m) Move.id)) (* filter to only left inverses *)
       |> function
-        | Some s -> s
-        | None -> failwith "could not find inverse symmetry"
+        | s :: [] -> s
+        | _ -> raise (LogicallyImpossible "there does not exist a unique inverse symmetry")
 
     let on_perm (s : t) (p : Perm.t) : Perm.t =
       Move.(to_move s * p * to_move (inverse s))
@@ -181,10 +162,10 @@ module S =
     let on_fixed_move (s : t) (m : Move.Fixed_move.t) : Move.Fixed_move.t = 
       let open Move in
       let m' = to_move s * Fixed_move.to_move m * to_move (inverse s) in
-      List.find Fixed_move.all ~f:(fun a -> equal_without_orientation (Fixed_move.to_move a) m')
+      List.find Fixed_move.all ~f:(fun a -> equal (Fixed_move.to_move a) m')
       |> function
         | Some m -> m
-        | None -> failwith "could not find equivalent move under symmetry"
+        | None -> raise (LogicallyImpossible "there does not exist an equivalent move under symmetry")
 
   end
 
@@ -215,30 +196,58 @@ let all =
   |> List.map ~f:S.to_rank
   |> List.sort ~compare:Int.compare
 
-module Sym_mult_table = Lookup_table.Make2D (I) (I) (I)
-
-let sym_mult_table =
-  Sym_mult_table.create all all ~f:(fun x1 x2 -> S.mult (S.of_rank x1) (S.of_rank x2) |> S.to_rank)
-
-let mult = Sym_mult_table.lookup sym_mult_table
-
-module Sym_inverse_table = Lookup_table.Make1D (I) (I)
-
-let inverse =
-  all
-  |> Sym_inverse_table.create ~f:(fun x -> x |> S.of_rank |> S.inverse |> S.to_rank)
-  |> Sym_inverse_table.lookup
-
 (* no memoization possible because there are too many possible permutations *)
 let on_perm x =
   x
   |> S.of_rank
   |> S.on_perm
 
+let random () = Random.int n
+
+(*
+  -------------------
+  MULTIPLY SYMMETRIES   
+  -------------------
+*)
+
+module Sym_mult_table = Lookup_table.Make2D (I) (I) (I)
+
+let sym_mult_table =
+  Sym_mult_table.create
+    all
+    all
+    ~f:(fun x1 x2 -> S.mult (S.of_rank x1) (S.of_rank x2) |> S.to_rank)
+
+let mult = Sym_mult_table.lookup sym_mult_table
+
+(*
+  -----------------
+  INVERT SYMMETRIES   
+  -----------------
+*)
+
+module Sym_inverse_table = Lookup_table.Make1D (I) (I)
+
+let inverse_table =
+  Sym_inverse_table.create
+    all
+    ~f:(fun x -> x |> S.of_rank |> S.inverse |> S.to_rank)
+
+let inverse = Sym_inverse_table.lookup inverse_table
+
+(*
+  -------------------
+  SYMMETRIES ON MOVES
+  -------------------
+*)
+
 module Sym_move_table = Lookup_table.Make2D (I) (Move.Fixed_move) (Move.Fixed_move)
 
-let on_fixed_move =
-  Sym_move_table.create all Move.Fixed_move.all ~f:(fun x m -> let s = S.of_rank x in S.on_fixed_move s m)
-  |> Sym_move_table.lookup
+let sym_move_table =
+  Sym_move_table.create
+    all
+    Move.Fixed_move.all
+    ~f:(fun x m -> let s = S.of_rank x in S.on_fixed_move s m)
 
-let random () = Random.int n
+let on_fixed_move = Sym_move_table.lookup sym_move_table
+

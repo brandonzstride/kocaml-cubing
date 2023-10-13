@@ -1,5 +1,7 @@
 open Core
 
+exception LogicallyImpossible of string
+
 module type T =
   sig
     type t [@@deriving sexp, compare]
@@ -482,7 +484,7 @@ module Twist = Make (
     let to_perm (x : int) : Perm.t =
       let open Cubie in
       let rec go x = function
-      | [] -> failwith "impossible if cube permutation is well-formed"
+      | [] -> raise (LogicallyImpossible "cube not well-formed in Twist to_perm")
       | hd :: tl -> begin function
         | Corner c when Cubie.Corner.compare hd c = 0 -> Cubie.With_orientation.Corner { c = c; o = Modular_int.Z3.of_int x }
         | c -> (go (x / 3) tl) c
@@ -529,7 +531,7 @@ module Flip = Make (
     let to_perm (x : int) : Perm.t =
       let open Cubie in
       let rec go x = function
-      | [] -> failwith "impossible if cube permutation is well-formed"
+      | [] -> raise (LogicallyImpossible "cube not well-formed in Flip to_perm")
       | hd :: tl -> begin function
         | Edge e when Cubie.Edge.compare hd e = 0 -> Cubie.With_orientation.Edge { e = e ; o = Modular_int.Z2.of_int x }
         | e -> (go (x / 2) tl) e
@@ -606,7 +608,7 @@ module UD_slice = Make (
       let is_filled x i k = x < ncr i k in
       let rec go x i k = function
       | _ when k < 0 -> fun x -> x (* all ud slice found, just leave the rest in place *)
-      | [] -> failwith "logically impossible if cube is well-formed"
+      | [] -> raise (LogicallyImpossible "cube not well-formed in UD_slice to_perm")
       | hd :: tl when is_filled x i k -> begin function
         | e when Edge.compare hd e = 0 -> List.nth_exn Edge.all_ud_slice_edges k
         | e -> go x (i - 1) (k - 1) tl e
