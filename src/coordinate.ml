@@ -68,7 +68,6 @@ module type Coordinate =
     module Fixed_move : Move.Fixed_move
     module Raw : T with module Fixed_move = Fixed_move
     module Make_memoized_coordinate (_ : Memo_params)     : T with module Fixed_move = Fixed_move
-    (* Symmetry coordinates are about half as fast as memoized coordinates. But they're VERY fast still! *)
     module Make_symmetry_coordinate (_ : Sym_memo_params) : T with module Fixed_move = Fixed_move
   end
 
@@ -160,6 +159,7 @@ module Make_memoized_coordinate
     let to_perm x = x |> T.of_rank |> T.to_perm
     let of_perm p = p |> T.of_perm |> T.to_rank
 
+    (* If move table only stored generators instead, this would just use Fn.apply_n_times *)
     let perform_fixed_move = Move_table.lookup     move_table
     let perform_symmetry   = Symmetry_table.lookup sym_table
   end
@@ -246,6 +246,10 @@ module Sym_base_of_raw (T : T) : Sym_base with module Raw = T =
         |> Symmetry.on_fixed_move x.sym
         |> Raw.Fixed_move.of_all_fixed_move
       in
+      (* This could stay as fixed move that is generated from a generator *)
+      (* But still needs to be able to be acted on by symmetry *)
+      (* Or it could be generator as long as symmetry can convert to some new
+         move that raw can use *)
       let y = Raw.perform_fixed_move x.rep m' |> of_raw in
       { rep = y.rep ; sym = Symmetry.mult y.sym x.sym }
       
@@ -376,6 +380,8 @@ module Make_symmetry_coordinate
 
     module Move_table = Lookup_table.Make2D (I) (Fixed_move) (I)
 
+    (* This would just be generator, which sym_base can handle just fine
+       if converted to a fixed move  *)
     let move_table =
       match M.status with
       | `Is_saved -> Move_table.from_file M.move_filepath
@@ -396,6 +402,9 @@ module Make_symmetry_coordinate
     (*
       This repeats some logic from Sym_base.
     *)
+    (* If only generator was memoized in move_table, would just
+       convert fixed move to its generators and apply n times.
+       But would require extra logic of keeping symmetry product right, I think. *)
     let perform_fixed_move (x : t) (m : Fixed_move.t) : t =
       let s1 = get_symmetry x in
       let m' =

@@ -113,6 +113,11 @@ module type Sym_memo_params =
   end
 
 (*
+  I definitely pass around the fixed move too much. Consider passing
+  just the type.
+*)
+
+(*
   A coordinate has a base functionality described within T and included
   within the coordinate. The user has the option to make a memoized version
   of a coordinate or a symmetry coordinate. Both require some computation
