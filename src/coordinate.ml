@@ -201,8 +201,6 @@ module Sym_base_of_raw (T : T) : Sym_base =
       let m' = Symmetry.on_fixed_move x.sym m in
       let y = Raw.perform_fixed_move x.rep m' |> of_raw in
       { rep = y.rep ; sym = Symmetry.mult y.sym x.sym }
-      (** ^ not updated for when left is applied first in mult,
-          but I think I might have initially had it wrong, so it's right now. *)
       
     (*
       To perform a symmetry s, we need to consider the new symmetry
@@ -460,6 +458,9 @@ module Twist = Make (
   struct
     let n = Int.(3 ** 7)
 
+    (* save the reversed list so it does not need to be reversed on every to_perm call *)
+    let corner_cubies_rev = List.rev Cubie.Corner.all
+
     (*
       Iterate over all corners (except for the last, least significant one),
       and give each one its own digit in a base 3 number.
@@ -497,7 +498,7 @@ module Twist = Make (
       in
       function (* the return type is a function. Capture edges first and pipe corners through *)
       | Edge e -> Cubie.With_orientation.Edge { e ; o = Modular_int.Z2.zero } (* let edges be untouched *)
-      | Corner _ as c -> go new_coord (List.rev Cubie.Corner.all) c 
+      | Corner _ as c -> go new_coord corner_cubies_rev c 
 
   end
 ) 
@@ -513,6 +514,9 @@ module Twist = Make (
 module Flip = Make (
   struct
     let n = Int.(2 ** 11)
+
+    (* save the reversed list so it does not need to be reversed on every to_perm call *)
+    let edge_cubies_rev = List.rev Cubie.Edge.all
 
     let of_perm (p : Perm.t) : int =
       let open Cubie.With_orientation.Edge in
@@ -541,7 +545,7 @@ module Flip = Make (
       in
       function (* the return type is a function. Capture corners first and pipe edges through *)
       | Corner c -> Cubie.With_orientation.Corner { c ; o = Modular_int.Z3.zero } (* let corners be untouched *)
-      | Edge   _ as e -> go new_coord (List.rev Cubie.Edge.all) e  (* TODO: use next instead of all for efficiency *)
+      | Edge   _ as e -> go new_coord edge_cubies_rev e
   end
 ) 
 
@@ -558,6 +562,9 @@ module Flip = Make (
 module UD_slice = Make (
   struct
     let n = ncr 12 4
+
+    (* save the reversed list so it does not need to be reversed on every to_perm call *)
+    let edge_cubies_rev = List.rev Cubie.Edge.all
     
     (*
       Label the edge spots 0..11. Four are filled with UD slice edges.
@@ -578,9 +585,7 @@ module UD_slice = Make (
       | hd :: tl when is_filled hd -> go (i - 1) (k - 1) tl
       | _ :: tl -> ncr i k + go (i - 1) k tl
       in
-      Cubie.Edge.all
-      |> List.rev
-      |> go 11 3
+      go 11 3 edge_cubies_rev
     
     (*
       This will be definition by example.
@@ -613,7 +618,7 @@ module UD_slice = Make (
       in
       function (* return type is function *)
       | Corner c -> Cubie.With_orientation.Corner { c ; o = Modular_int.Z3.zero } (* leave corners untouched *)
-      | Edge   e -> Cubie.With_orientation.Edge { e = go x 11 3 (List.rev Edge.all) e ; o = Modular_int.Z2.zero }
+      | Edge   e -> Cubie.With_orientation.Edge { e = go x 11 3 edge_cubies_rev e ; o = Modular_int.Z2.zero }
 
   end
 ) 
@@ -660,7 +665,6 @@ module Flip_UD_slice = Make (
     let to_perm (x : int) : Perm.t =
       let y = T.of_rank x in
       Move.(UD_slice.Raw.to_perm y.ud_slice * Flip.Raw.to_perm y.flip)
-      (** TODO: does order matter here ^ ? *)
 
     let of_perm (p : Perm.t) : int =
       T.{ ud_slice = UD_slice.Raw.of_perm p ; flip = Flip.Raw.of_perm p }

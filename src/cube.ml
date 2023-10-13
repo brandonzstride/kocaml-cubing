@@ -34,6 +34,8 @@ module Phase1 (Twist : Coordinate.T) (Flip_UD_slice : Coordinate.T) : S =
     let is_twist_smaller = Twist.n < Flip_UD_slice.n
 
     (* TODO: the ranks need to consider the non-symmetry coordinate under the same symmetry *)
+    (* i.e. the symmetry should always be converted to the representative symmetry first
+       and this affects the other non-symmetry coordinate. *)
     let to_rank =
       if is_twist_smaller then
         function { twist ; flip_ud_slice } ->
