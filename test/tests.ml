@@ -403,16 +403,6 @@ module Corner_perm_sym = Coordinate.Corner_perm.Make_symmetry_coordinate (S)
     "flip ud slice" >:: test_coord_move_sequence_phase1 (module Flip_UD_slice_sym)
   ] *)
 
-(*
-  This seems to sometimes fail. I've asserted with manual tests that (as far I as can see)
-  the equivalence class is always the same, but sometimes the symmetry coordinate is not
-  exactly the same.
-  
-  I assume that this is when the same cube can be represented by two different symmetry coordinates
-  because the symmetry does not affect the cube. I cannot think of an example when this happens,
-  but it's evidenced by the fact that there are more equivalence classes than if the classes
-  perfectly partitioned the space, and Kociemba alludes to it.
-*)
 let test_sym_phase2_coord_move_sequence =
   "sym phase2 coord move sequences" >::: [
     "corner perm" >:: test_coord_move_sequence_phase2 (module Corner_perm_sym);

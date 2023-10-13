@@ -34,7 +34,7 @@ val inverse : t -> t
 (* how a symmetry s acts on a perm p by s * p * s^-1 *)
 val on_perm : t -> Perm.t -> Perm.t
 (* How a symmetry s acts on a move m by s * m * s^-1 *)
-val on_fixed_move : t -> Move.Fixed_move.t -> Move.Fixed_move.t
+val on_fixed_move : t -> Move.All_fixed_move.t -> Move.All_fixed_move.t
 val to_rank : t -> int
 val of_rank : int -> t
 val n : int

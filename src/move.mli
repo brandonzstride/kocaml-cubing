@@ -37,23 +37,41 @@ val equal_without_orientation : t -> t -> bool
 (* This isn't typical, but it's noted in the permutation wikipedia that this is sometimes done *)
 val ( * ) : t -> t -> t
 
-module Faceturn : sig
-  type t = U | R | F | D | B | L [@@deriving variants, sexp, compare]
-
-  val to_move : t -> T.t
-end
-
-(* This is the signature for multiple turns of one face *)
-(* We do not allow count to be zero in `all` or in `to_rank` *)
-module Fixed_move : 
+(* module Faceturn :
   sig
-    type t = { faceturn : Faceturn.t ; count : Modular_int.Z4.t } [@@deriving sexp, compare]
+    type t = U | R | F | D | B | L [@@deriving enumerate, variants, sexp, compare]
+
+    val to_move : t -> T.t
+  end *)
+
+module All_fixed_move_T :
+  sig
+    type t
+  end
+
+module type Fixed_move =
+  sig
+    module Faceturn :
+      sig
+        type t [@@deriving emumerate, variants, sexp, compare]
+        val to_move : t -> T.t
+      end
+    type t [@@deriving sexp, compare]
+    val of_faceturn_and_count : Faceturn.t -> int -> t
+    val to_faceturn_and_count : t -> (Faceturn.t * int)
     val all : t list (* all non-identity moves *)
-    val all_g1 : t list (* all non-identity moves that generate g1 *)
-    val n : int (* number of possible moves -- length of `all` -- number of non-identity moves *)
-    val to_rank : t -> int (* not defined on count = 0 *)
+    val n : int (* number of non-identity moves *)
+    val to_rank : t -> int (* not defined on identity moves *)
     val to_move : t -> T.t
 
+    (* allow conversions to and from every possible fixed move *)
+    val to_all_fixed_move : t -> All_fixed_move_T.t
+    val of_all_fixed_move : All_fixed_move_T.t -> t
+
     val random_list : int -> t list
-    val random_g1_list : int -> t list
   end
+
+(* All fixed moves that generate the cube group *)
+module All_fixed_move : Fixed_move with type t = All_fixed_move_T.t and module Faceturn = Faceturn
+(* Only the generators for the G1 subgroup *)
+module G1_fixed_move : Fixed_move

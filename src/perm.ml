@@ -12,12 +12,12 @@ let is_identity (p : t) : bool =
 let perform_move (p : t) (m : Move.t) =
   Move.(p * m) (* Does p first and then m *)
 
-let perform_fixed_move (p : t) (m : Move.Fixed_move.t) : t =
-  m |> Move.Fixed_move.to_move |> perform_move p
+let perform_fixed_move (p : t) (m : Move.All_fixed_move.t) : t =
+  m |> Move.All_fixed_move.to_move |> perform_move p
 
-let perform_fixed_move_list (p : t) (ls : Move.Fixed_move.t list) : t =
+let perform_fixed_move_list (p : t) (ls : Move.All_fixed_move.t list) : t =
   ls
-  |> List.fold ~init:p ~f:(fun p m -> m |> Move.Fixed_move.to_move |> perform_move p)
+  |> List.fold ~init:p ~f:(fun p m -> m |> Move.All_fixed_move.to_move |> perform_move p)
 
 let of_move_list (ls : Move.t list) : t =
   List.fold ls ~init:identity ~f:perform_move

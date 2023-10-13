@@ -109,34 +109,78 @@ module Faceturn =
           | UFL -> ULB, 1 | ULB -> DBL, 2 | DBL -> DLF, 1 | DLF -> UFL, 2 | _ -> c, 0 end
           in Cubie.With_orientation.Corner { c = c' ; o = Z3.of_int o }
         end
-    
   end
 
-module Fixed_move = 
+module G1_faceturn =
   struct
-    type t = { faceturn : Faceturn.t ; count : Modular_int.Z4.t } [@@deriving enumerate, sexp, compare]
+    type t = U | D | R2 | F2 | B2 | L2 [@@deriving enumerate, variants, sexp, compare]
+
+    let to_faceturn : t -> Faceturn.t = function
+    | U -> Faceturn.U
+    | D -> Faceturn.D
+    | R2 -> Faceturn.R
+    | F2 -> Faceturn.F
+    | B2 -> Faceturn.B
+    | L2 -> Faceturn.L
+
+    let to_move x = 
+      let y = to_faceturn x in
+      match x with
+      | U | D -> Faceturn.to_move y
+      | _ -> Faceturn.to_move y * Faceturn.to_move y
+  end
+
+module All_fixed_move_T =
+  struct
+    type t = { faceturn : Faceturn.t ; count : Modular_int.Z4.t }
+  end
+
+module type Fixed_move =
+  sig
+    module Faceturn :
+      sig
+        type t
+      end
+    type t [@@deriving sexp, compare]
+    val of_faceturn_and_count : Faceturn.t -> int -> t
+    val to_faceturn_and_count : t -> (Faceturn.t * int)
+    val all : t list (* all non-identity moves *)
+    val n : int (* number of non-identity moves *)
+    val to_rank : t -> int (* not defined on identity moves *)
+    val to_move : t -> T.t
+
+    (* allow conversions to and from every possible fixed move *)
+    val to_all_fixed_move : t -> All_fixed_move_T.t
+    val of_all_fixed_move : All_fixed_move_T.t -> t
+
+    val random_list : int -> t list
+  end
+
+
+module All_fixed_move : Fixed_move with type t = All_fixed_move_T.t and module Faceturn = Faceturn =
+  struct
+    module Faceturn = Faceturn
+
+    type t = All_fixed_move_T.t = { faceturn : Faceturn.t ; count : Modular_int.Z4.t } [@@deriving enumerate, sexp, compare]
+
+    let of_faceturn_and_count (faceturn : Faceturn.t) (count : int) : t =
+      { faceturn ; count = Modular_int.Z4.of_int count }
+
+    let to_faceturn_and_count (x : t) : (Faceturn.t * int) =
+      x.faceturn, Modular_int.Z4.to_int x.count
 
     let to_rank x = 
       assert (Modular_int.Z4.to_int x.count <> 0);
       Int.(Faceturn.Variants.to_rank x.faceturn * 3 + Modular_int.Z4.to_int x.count - 1)
-      
-    (* all defined by enumerate; sort by rank *)
+
     let all = 
       let cmp a b = Int.compare (to_rank a) (to_rank b) in
       all
       |> List.filter ~f:(fun x -> Modular_int.Z4.compare x.count Modular_int.Z4.zero <> 0)
       |> List.sort ~compare:cmp
 
-    (* g1 is any turn of U or D, and double turns of other faces *)
-    let is_g1 = function
-    | { faceturn = U ; count = _ } | {faceturn = D ; count = _ } -> true
-    | { faceturn = _ ; count = z } when Modular_int.Z4.to_int z mod 2 = 0 -> true
-    | _ -> false
-
-    let all_g1 = all |> List.filter ~f:is_g1
-
     let n = List.length all
-    
+
     let to_move { faceturn ; count } =
       let m = Faceturn.to_move faceturn in
       match Modular_int.Z4.to_int count with
@@ -145,16 +189,114 @@ module Fixed_move =
       | 2 -> m * m
       | _ -> m * m * m
 
-    let random ls _ =
+    let random_from_list ls _ =
       ls
       |> List.length
       |> Random.int 
       |> List.nth_exn ls
 
     let random_list n =
-      List.init n ~f:(random all)
+      List.init n ~f:(random_from_list all)
 
-    let random_g1_list n =
-      List.init n ~f:(random all_g1)
+    let to_all_fixed_move = Fn.id
+    let of_all_fixed_move = Fn.id
+    
+  end
 
+module G1_fixed_move : Fixed_move =
+  struct
+    module Faceturn = G1_faceturn
+
+    module Single =
+      struct
+        type t = { faceturn : Faceturn.t ; count : Modular_int.Z4.t} [@@deriving enumerate, sexp, compare]
+
+        let all = List.filter all ~f:(fun x ->
+          match x.faceturn with
+          | U | D -> Modular_int.Z4.to_int x.count <> 0
+          | _ -> false
+          )
+      end
+
+    module Double =
+      struct
+        type t = { faceturn : Faceturn.t ; count : Modular_int.Z2.t} [@@deriving enumerate, sexp, compare]
+
+        let all = List.filter all ~f:(fun x ->
+          match x.faceturn with
+          | U | D -> false
+          | _ -> Modular_int.Z2.to_int x.count <> 0
+          )
+      end
+
+    type t =
+      | Single of Single.t
+      | Double of Double.t
+      [@@deriving enumerate, sexp, compare]
+
+    let of_faceturn_and_count (faceturn : Faceturn.t) (count : int) : t =
+      match faceturn with
+      | U | D -> Single Single.{ faceturn ; count = Modular_int.Z4.of_int count }
+      | _ -> Double Double.{ faceturn ; count = Modular_int.Z2.of_int count }
+
+    let to_faceturn_and_count : t -> (Faceturn.t * int) =
+      function
+      | Single x -> x.faceturn, Modular_int.Z4.to_int x.count
+      | Double x -> x.faceturn, Modular_int.Z2.to_int x.count
+
+    let to_rank : t -> int = function
+      | Single x -> begin
+        match x.faceturn with
+        | U -> Modular_int.Z4.to_int x.count - 1
+        | D -> Modular_int.Z4.to_int x.count + 2 (* offset by 3 because of U, then must subtract 1 from count *)
+        | _ -> failwith "logically impossible"
+        end
+      | Double x -> Int.(6 + Faceturn.Variants.to_rank x.faceturn) 
+
+    let all = 
+      let is_nonzero_count = function
+        | Single x -> Modular_int.Z4.compare x.count Modular_int.Z4.zero <> 0
+        | Double x -> Modular_int.Z2.compare x.count Modular_int.Z2.zero <> 0
+      in
+      let cmp a b = Int.compare (to_rank a) (to_rank b) in
+      all (* defined from enumerate *)
+      |> List.filter ~f:is_nonzero_count
+      |> List.sort ~compare:cmp
+
+    let n = List.length all
+
+    let to_all_fixed_move (x : t) : All_fixed_move.t =
+      let fturn, count =
+        match x with
+        | Single y -> Faceturn.to_faceturn y.faceturn, Modular_int.Z4.to_int y.count
+        | Double y -> Faceturn.to_faceturn y.faceturn, Int.(Modular_int.Z2.to_int y.count * 2)
+      in
+      All_fixed_move.of_faceturn_and_count fturn count
+
+    let to_move x =
+      x
+      |> to_all_fixed_move
+      |> All_fixed_move.to_move
+
+    let random_from_list ls _ =
+      ls
+      |> List.length
+      |> Random.int 
+      |> List.nth_exn ls
+
+    let random_list n =
+      List.init n ~f:(random_from_list all)
+    
+    let of_all_fixed_move (x : All_fixed_move.t) : t =
+      let open Faceturn in
+      let fturn, count =
+        match All_fixed_move.to_faceturn_and_count x with
+        | All_fixed_move.Faceturn.U, i -> U, i
+        | All_fixed_move.Faceturn.D, i -> D, i
+        | All_fixed_move.Faceturn.R, i -> R2, i / 2
+        | All_fixed_move.Faceturn.F, i -> F2, i / 2
+        | All_fixed_move.Faceturn.B, i -> B2, i / 2
+        | All_fixed_move.Faceturn.L, i -> L2, i / 2
+      in
+      of_faceturn_and_count fturn count
   end

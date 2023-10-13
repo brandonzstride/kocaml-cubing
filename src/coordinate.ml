@@ -42,7 +42,7 @@ module type T =
     val of_rank : int -> t
     val to_perm : t -> Perm.t
     val of_perm : Perm.t -> t
-    val perform_fixed_move : t -> Move.Fixed_move.t -> t
+    val perform_fixed_move : t -> Move.All_fixed_move.t -> t
     val perform_symmetry : t -> Symmetry.t -> t
     val all : unit -> t list
   end
@@ -119,7 +119,7 @@ module Make_memoized_coordinate (T : T with type t = int) (M : Memo_params) : T 
     let all () = List.init n ~f:Fn.id
 
     (* Since I.t has sexp, we can say return type is I *)
-    module Move_table = Lookup_table.Make2D (I) (Move.Fixed_move) (I)
+    module Move_table = Lookup_table.Make2D (I) (Move.All_fixed_move) (I)
     module Symmetry_table = Lookup_table.Make2D (I) (Symmetry) (I)
 
     (** TODO: only let g1 generators be applied to phase2 coordinates.
@@ -130,9 +130,9 @@ module Make_memoized_coordinate (T : T with type t = int) (M : Memo_params) : T 
       | `Needs_computation ->
         let time = Caml_unix.gettimeofday () in
         let f = fun x m -> T.perform_fixed_move x m |> T.to_rank in
-        let tbl = Move_table.create (T.all ()) Move.Fixed_move.all ~f:f in
+        let tbl = Move_table.create (T.all ()) Move.All_fixed_move.all ~f:f in
         (* Move_table.to_file tbl M.move_filepath; *)
-        Printf.printf "Computed move table of size %d in time %fs\n" (T.n * Move.Fixed_move.n) (Caml_unix.gettimeofday() -. time);
+        Printf.printf "Computed move table of size %d in time %fs\n" (T.n * Move.All_fixed_move.n) (Caml_unix.gettimeofday() -. time);
         tbl
 
     let sym_table =
@@ -166,7 +166,7 @@ module type Sym_base =
     val of_raw : Raw.t -> t
     val get_rep : t -> Raw.t
     val get_sym : t -> Symmetry.t
-    val perform_fixed_move : t -> Move.Fixed_move.t -> t
+    val perform_fixed_move : t -> Move.All_fixed_move.t -> t
     val perform_symmetry : t -> Symmetry.t -> t
     val all : unit -> t list (* gets all reprsentatives of eq classes *)
   end
@@ -229,7 +229,7 @@ module Sym_base_of_raw (T : T) : Sym_base =
       So the resulting raw coord is R'' and the resulting
       symmetry is S' * S.
     *)
-    let perform_fixed_move (x : t) (m : Move.Fixed_move.t) : t =
+    let perform_fixed_move (x : t) (m : Move.All_fixed_move.t) : t =
       let m' = Symmetry.on_fixed_move x.sym m in
       let y = Raw.perform_fixed_move x.rep m' |> of_raw in
       { rep = y.rep ; sym = Symmetry.mult y.sym x.sym }
@@ -354,7 +354,7 @@ module Make_symmetry_coordinate (S : Sym_base) (M : Sym_memo_params) =
       let sym_rank = Symmetry.to_rank (S.get_sym x) in
       class_index * Symmetry.n + sym_rank
 
-    module Move_table = Lookup_table.Make2D (I) (Move.Fixed_move) (I)
+    module Move_table = Lookup_table.Make2D (I) (Move.All_fixed_move) (I)
 
     let move_table =
       match M.status with
@@ -368,15 +368,15 @@ module Make_symmetry_coordinate (S : Sym_base) (M : Sym_memo_params) =
           |> Fn.flip S.perform_fixed_move m
           |> of_base
         in
-        let tbl = Move_table.create (all ()) Move.Fixed_move.all ~f in
+        let tbl = Move_table.create (all ()) Move.All_fixed_move.all ~f in
         (* Move_table.to_file tbl M.move_filepath; *)
-        Printf.printf "Computed move table of size %d in time %fs\n" (I.n * Move.Fixed_move.n) (Caml_unix.gettimeofday() -. time);
+        Printf.printf "Computed move table of size %d in time %fs\n" (I.n * Move.All_fixed_move.n) (Caml_unix.gettimeofday() -. time);
         tbl
 
     (*
       This repeats some logic from Sym_base.
     *)
-    let perform_fixed_move (x : t) (m : Move.Fixed_move.t) : t =
+    let perform_fixed_move (x : t) (m : Move.All_fixed_move.t) : t =
       let s1 = get_symmetry x in
       let m' = Symmetry.on_fixed_move s1 m in
       let y = Move_table.lookup move_table x m' in (* resulting sym coord in rep sym coord for x *)
@@ -438,9 +438,9 @@ module Make (I : Int_coord_raw) : Coordinate =
         let zero = 0
         let next x = if x = n - 1 then None else Some (x + 1)
         let all () = List.init n ~f:Fn.id
-        let perform_fixed_move (x : t) (m : Move.Fixed_move.t) : t =
+        let perform_fixed_move (x : t) (m : Move.All_fixed_move.t) : t =
           m
-          |> Move.Fixed_move.to_move
+          |> Move.All_fixed_move.to_move
           |> Perm.perform_move (I.to_perm x)
           |> I.of_perm
         let perform_symmetry (x : t) (s : Symmetry.t) : t = 
