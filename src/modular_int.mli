@@ -10,6 +10,9 @@
 
     Addition is the group operation, but multiplication is
     implemented.
+
+  Dependencies:
+    None
 *)
 
 module type S = sig

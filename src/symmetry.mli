@@ -19,6 +19,12 @@
   IMPORTANT NOTE:
     I currently don't use the reflection. In the long-run, I would like
     to use it.
+
+  Dependencies:
+    Move -- symmetries are represented as moves
+    Perm -- symmetries can act on permutations
+    Cubie -- because this uses moves
+    Lookup_table -- symmetries are memoized upon startup for better efficiency
 *)
 
 type t

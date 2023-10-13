@@ -14,6 +14,9 @@
 
   Other considerations:
     Maybe combine this with `Cube` under a submodule.
+
+  Dependencies:
+    Move -- a permutation is exactly a move on the identity cube
 *)
 
 type t = Move.t

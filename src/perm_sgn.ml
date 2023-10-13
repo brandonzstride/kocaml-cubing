@@ -17,6 +17,9 @@
     * permutation sign
     * colors make real cube
     * cubie orientations sum to zero mod n
+
+  Dependencies:
+    None
 *)
 
 let sgn ls ~compare =

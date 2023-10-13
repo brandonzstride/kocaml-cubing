@@ -14,6 +14,10 @@
     f(URF) = (UFL, 1) means that the URF cubie position on the cube will get
     replaced by the cubie that was in the UFL position, and it will gain
     orientation 1.
+  
+  Dependencies:
+    Cubie -- moves directly permute the cubies
+    Modular_int -- powers of up to four faceturns make up a move
 *)
 
 module T :

@@ -19,6 +19,9 @@
     The domain must have a `to_rank` function that takes an element of the domain
     to a unique integer.
 
+  Dependencies:
+    None
+
 *)
 
 module type Key =

@@ -16,8 +16,11 @@
     makes up the first character of the cubie (e.g. "U" in the URF cubie).
 
   Expected usage:
-    Moves and coordinates need to interact directly with cubiess. This
+    Moves and coordinates need to interact directly with cubies. This
     module satisfies the need to work hands-on with the raw cube.
+
+  Dependencies:
+    Modular_int -- for orientations of edges (Z2) and corners (Z3)
 *)
 
 module T :

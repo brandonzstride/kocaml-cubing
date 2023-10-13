@@ -8,4 +8,7 @@
     enable the solver to prune off cube states that are not easily solved.
     The hueristic is some integer for each coordinate value, which is
     not predictable and must be calculated and stored.
+
+  Dependencies:
+    None
 *)

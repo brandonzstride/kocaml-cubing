@@ -17,13 +17,15 @@ Here is a quick walk through the project. The goal of this section is to help a 
 
 The Kociemba Two-Phase algorithm finds a solution to a Rubik's cube in 30 moves or less. It represents a cube by *coordinates*. A coordinate is an integer that uniquely describes some aspect of the cube. For example, the Twist coordinate describes how each corner of the cube is oriented, but not where it is positioned. One coordinate for each aspect of the cube lets us represent a cube entirely by a few integers. The goal is to find a short sequence of moves that brings each coordinate to the solved state. There are two phases of the algorithm, and each phase tries to bring a different set of coordinates to the solved state, where the second phase does not disrupt the solution to the first.
 
-Because the space of coordinates is large, we choose to reduce the size of the space via symmetries of the cube. A *symmetry coordinate* is a description of the coordinate after it's been reduced by symmetries.
+(What are symmetries) Because the space of coordinates is large, we choose to reduce the size of the space via symmetries of the cube. A *symmetry coordinate* is a description of the coordinate after it's been reduced by symmetries.
 
 Once the cube is fully represented by coordinates, we can perform a graph search for the goal state of each phase--the goal state of phase 2 is the solved state of the cube. We use A* for this graph search where the heuristic is a precomputed path length to solve some of the coordinates in that phase.
 
 That's the 20,000 foot picture: represent the cube with some integers and search a graph for the solution. It sounds simple when put like that.
 
 To take a peek into the code, I suggest starting with the following files: `cubie.mli`, `move.mli` and `coordinate.mli`. Note the module descriptions at the top of the files, and then look at the signatures. Afterwards, look at `coordinate.ml` for some of my more significant work.
+
+(file flow? like dune in english)
 
 ## Status
 

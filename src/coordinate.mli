@@ -18,6 +18,13 @@
   Expected usage:
     The `Cube` module uses a record of some coordinates to holistically
     represent a cube. Other modules need not refer to coordinates directly.
+
+  Dependencies:
+    Perm -- coordinates are represent an aspect of a perm
+    Move -- coordinates can be acted on by moves
+    Cubie -- coordinates are calculated from the cubies of a perm
+    Symmetry -- for reduction by symmetry equivalence classes
+    Lookup_table -- for memoization for increase efficiency
 *)
 
 (*
