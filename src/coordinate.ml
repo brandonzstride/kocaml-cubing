@@ -66,7 +66,7 @@ let ncr n r =
   It's assumed that the coordinate is not so extremely large that
   these lookup tables are unfeasable.
 *)
-module Make_memoized_coordinate (T : T) (M : Memo_params) : T =
+module Make_memoized_coordinate (T : T with type t = int) (M : Memo_params) : T =
   struct
     (*
       The type in a memoized coordinate will be int. This integer

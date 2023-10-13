@@ -210,7 +210,10 @@ include I
 let of_rank = Fn.id
 let next x = if x = n - 1 then None else Some (x + 1)
 let zero = 0
-let all = List.map S.all ~f:S.to_rank
+let all =
+  S.all
+  |> List.map ~f:S.to_rank
+  |> List.sort ~compare:Int.compare
 
 module Sym_mult_table = Lookup_table.Make2D (I) (I) (I)
 
@@ -228,12 +231,13 @@ let inverse =
 
 (* no memoization possible because there are too many possible permutations *)
 let on_perm x =
-  x |> S.of_rank |> S.on_perm
+  x
+  |> S.of_rank
+  |> S.on_perm
 
 module Sym_move_table = Lookup_table.Make2D (I) (Move.Fixed_move) (Move.Fixed_move)
 
 let on_fixed_move =
-  (* bug caused by all is not in same order as rank *)
   Sym_move_table.create all Move.Fixed_move.all ~f:(fun x m -> let s = S.of_rank x in S.on_fixed_move s m)
   |> Sym_move_table.lookup
 

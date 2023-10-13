@@ -361,22 +361,30 @@ let test_move_symmetries =
     "S_U4 L2" >:: compare_sym_move (L, 2) su4 (F, 2);
     "max R"   >:: compare_sym_move (R, 1) max (F, 1);
     "max U"   >:: compare_sym_move (U, 1) max (D, 1);
-    "max B3"  >:: compare_sym_move (B, 3) max (R, 3);
+    "max B3"  >:: compare_sym_move (B, 3) max (L, 3);
   ]
 
 let test_sym_moves_on_perm =
   (* Try this on random perms with random moves and random symmetries *)
   let run_trial (p : Perm.t) (m : Move.Fixed_move.t) (s : Symmetry.t) : unit =
-    let p' = p |> Symmetry.on_perm s |> Fn.flip Perm.perform_fixed_move m in
-    let p'' = s |> Symmetry.inverse |> Fn.flip Symmetry.on_fixed_move m |> Perm.perform_fixed_move p in
-    assert_equal p'' (Symmetry.on_perm (Symmetry.inverse s) p')
+    let p' = (* s^-1 * s * p * s^-1 * m * s *)
+      p
+      |> Symmetry.on_perm s
+      |> Fn.flip Perm.perform_fixed_move m
+      |> Symmetry.on_perm (Symmetry.inverse s)
+      in
+    s
+    |> Symmetry.inverse
+    |> Fn.flip Symmetry.on_fixed_move m
+    |> Perm.perform_fixed_move p (* p * s^-1 * m * s *)
+    |> Move.equal p'
+    |> assert_equal true
   in
   "Fixed moves under symmetry on perm" >:: 
     begin fun _ ->
-    List.fold
-      (List.init 1000 ~f:(fun _ -> ()))
-      ~init:()
-      ~f:(fun _ _ ->
+    List.iter
+      (List.init 1000 ~f:(Fn.const ()))
+      ~f:(fun _ ->
         let p = Move.Fixed_move.random_list 40 |> Perm.perform_fixed_move_list Perm.identity in (* 40 moves to generate random perm *)
         let m = Move.Fixed_move.random_list 1 |> List.hd_exn in
         let s = Symmetry.random () in
@@ -395,17 +403,17 @@ module S : Coordinate.Sym_memo_params =
   end
 
 (* module Flip_UD_slice_sym = Coordinate.Flip_UD_slice.Make_symmetry_coordinate (S) *)
-(* module Corner_perm_sym = Coordinate.Corner_perm.Make_symmetry_coordinate (S) *)
+module Corner_perm_sym = Coordinate.Corner_perm.Make_symmetry_coordinate (S)
 
 (* let test_sym_phase1_coord_move_sequence =
   "sym phase1 coord move sequences" >::: [
     "flip ud slice" >:: test_coord_move_sequence_phase1 (module Flip_UD_slice_sym)
   ] *)
 
-(* let test_sym_phase2_coord_move_sequence =
+let test_sym_phase2_coord_move_sequence =
   "sym phase2 coord move sequences" >::: [
     "corner perm" >:: test_coord_move_sequence_phase2 (module Corner_perm_sym);
-  ] *)
+  ]
 
 let cube_tests = "cube tests" >::: [
   test_coord_of_perm;
@@ -419,7 +427,7 @@ let cube_tests = "cube tests" >::: [
   test_move_symmetries;
   test_sym_moves_on_perm;
   (* test_sym_phase1_coord_move_sequence; *)
-  (* test_sym_phase2_coord_move_sequence; *) (* fails *)
+  test_sym_phase2_coord_move_sequence;
 ]
 
 let series = "series" >::: [

@@ -118,10 +118,14 @@ module Fixed_move =
 
     let to_rank x = 
       assert (Modular_int.Z4.to_int x.count <> 0);
-      Int.(Faceturn.Variants.to_rank x.faceturn * 3 + Modular_int.Z4.to_int x.count)
+      Int.(Faceturn.Variants.to_rank x.faceturn * 3 + Modular_int.Z4.to_int x.count - 1)
       
-    (* all defined by enumerate *)
-    let all = all |> List.filter ~f:(fun x -> Modular_int.Z4.compare x.count Modular_int.Z4.zero <> 0)
+    (* all defined by enumerate; sort by rank *)
+    let all = 
+      let cmp a b = Int.compare (to_rank a) (to_rank b) in
+      all
+      |> List.filter ~f:(fun x -> Modular_int.Z4.compare x.count Modular_int.Z4.zero <> 0)
+      |> List.sort ~compare:cmp
 
     (* g1 is any turn of U or D, and double turns of other faces *)
     let is_g1 = function
