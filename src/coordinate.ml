@@ -34,6 +34,7 @@ exception LogicallyImpossible of string
 
 module type T =
   sig
+    module Fixed_move : Move.Fixed_move 
     type t [@@deriving sexp, compare]
     val zero : t
     val n : int
@@ -42,7 +43,7 @@ module type T =
     val of_rank : int -> t
     val to_perm : t -> Perm.t
     val of_perm : Perm.t -> t
-    val perform_fixed_move : t -> Move.All_fixed_move.t -> t
+    val perform_fixed_move : t -> Fixed_move.t -> t
     val perform_symmetry : t -> Symmetry.t -> t
     val all : unit -> t list
   end
@@ -64,10 +65,15 @@ module type Sym_memo_params =
 
 module type Coordinate =
   sig
-    module Raw : T
-    module Make_memoized_coordinate (_ : Memo_params)     : T
-    module Make_symmetry_coordinate (_ : Sym_memo_params) : T
+    module Fixed_move : Move.Fixed_move
+    module Raw : T with module Fixed_move = Fixed_move
+    module Make_memoized_coordinate (_ : Memo_params)     : T with module Fixed_move = Fixed_move
+    (* Symmetry coordinates are about half as fast as memoized coordinates. But they're VERY fast still! *)
+    module Make_symmetry_coordinate (_ : Sym_memo_params) : T with module Fixed_move = Fixed_move
   end
+
+module type Phase1Coordinate = Coordinate with module Fixed_move = Move.All_fixed_move
+module type Phase2Coordinate = Coordinate with module Fixed_move = Move.G1_fixed_move
 
 (* begin implementation *)
 
@@ -98,8 +104,12 @@ let ncr n r =
   It's assumed that the coordinate is not so extremely large that
   these lookup tables are unfeasable.
 *)
-module Make_memoized_coordinate (T : T with type t = int) (M : Memo_params) : T =
+module Make_memoized_coordinate
+    (T : T)
+    (M : Memo_params)
+    : T with module Fixed_move = T.Fixed_move =
   struct
+    module Fixed_move = T.Fixed_move
     (*
       The type in a memoized coordinate will be int. This integer
       is exactly the rank of the corresponding coordinate in the
@@ -119,7 +129,7 @@ module Make_memoized_coordinate (T : T with type t = int) (M : Memo_params) : T 
     let all () = List.init n ~f:Fn.id
 
     (* Since I.t has sexp, we can say return type is I *)
-    module Move_table = Lookup_table.Make2D (I) (Move.All_fixed_move) (I)
+    module Move_table = Lookup_table.Make2D (I) (Fixed_move) (I)
     module Symmetry_table = Lookup_table.Make2D (I) (Symmetry) (I)
 
     (** TODO: only let g1 generators be applied to phase2 coordinates.
@@ -129,10 +139,10 @@ module Make_memoized_coordinate (T : T with type t = int) (M : Memo_params) : T 
       | `Is_saved -> Move_table.from_file M.move_filepath
       | `Needs_computation ->
         let time = Caml_unix.gettimeofday () in
-        let f = fun x m -> T.perform_fixed_move x m |> T.to_rank in
-        let tbl = Move_table.create (T.all ()) Move.All_fixed_move.all ~f:f in
+        let f = fun x m -> T.perform_fixed_move (T.of_rank x) m |> T.to_rank in
+        let tbl = Move_table.create (all ()) Fixed_move.all ~f:f in
         (* Move_table.to_file tbl M.move_filepath; *)
-        Printf.printf "Computed move table of size %d in time %fs\n" (T.n * Move.All_fixed_move.n) (Caml_unix.gettimeofday() -. time);
+        Printf.printf "Computed move table of size %d in time %fs\n" (T.n * Fixed_move.n) (Caml_unix.gettimeofday() -. time);
         tbl
 
     let sym_table =
@@ -140,8 +150,8 @@ module Make_memoized_coordinate (T : T with type t = int) (M : Memo_params) : T 
       | `Is_saved -> Symmetry_table.from_file M.symmetry_filepath
       | `Needs_computation ->
         let time = Caml_unix.gettimeofday () in
-        let f = fun x s -> T.perform_symmetry x s |> T.to_rank in
-        let tbl = Symmetry_table.create (T.all ()) Symmetry.all ~f:f in
+        let f = fun x s -> T.perform_symmetry (T.of_rank x) s |> T.to_rank in
+        let tbl = Symmetry_table.create (all ()) Symmetry.all ~f:f in
         (* Symmetry_table.to_file tbl M.symmetry_filepath; *)
         Printf.printf "Computed symmetry table of size %d in time %fs\n" (T.n * Symmetry.n) (Caml_unix.gettimeofday() -. time);
         tbl
@@ -166,12 +176,12 @@ module type Sym_base =
     val of_raw : Raw.t -> t
     val get_rep : t -> Raw.t
     val get_sym : t -> Symmetry.t
-    val perform_fixed_move : t -> Move.All_fixed_move.t -> t
+    val perform_fixed_move : t -> Raw.Fixed_move.t -> t
     val perform_symmetry : t -> Symmetry.t -> t
     val all : unit -> t list (* gets all reprsentatives of eq classes *)
   end
 
-module Sym_base_of_raw (T : T) : Sym_base =
+module Sym_base_of_raw (T : T) : Sym_base with module Raw = T =
   struct
     module Raw = T
     (*
@@ -229,8 +239,13 @@ module Sym_base_of_raw (T : T) : Sym_base =
       So the resulting raw coord is R'' and the resulting
       symmetry is S' * S.
     *)
-    let perform_fixed_move (x : t) (m : Move.All_fixed_move.t) : t =
-      let m' = Symmetry.on_fixed_move x.sym m in
+    let perform_fixed_move (x : t) (m : Raw.Fixed_move.t) : t =
+      let m' =
+        m
+        |> Raw.Fixed_move.to_all_fixed_move
+        |> Symmetry.on_fixed_move x.sym
+        |> Raw.Fixed_move.of_all_fixed_move
+      in
       let y = Raw.perform_fixed_move x.rep m' |> of_raw in
       { rep = y.rep ; sym = Symmetry.mult y.sym x.sym }
       
@@ -273,8 +288,13 @@ module Sym_base_of_raw (T : T) : Sym_base =
   Now I'll use the Sym_base to create a full-blown symmetry coordinate.
   This will be expensive to compute because it needs to call Sym_base.all.
 *)
-module Make_symmetry_coordinate (S : Sym_base) (M : Sym_memo_params) =
+module Make_symmetry_coordinate
+    (S : Sym_base)
+    (M : Sym_memo_params)
+    : T with module Fixed_move = S.Raw.Fixed_move =
   struct
+
+    module Fixed_move = S.Raw.Fixed_move
     
     module Raw_table =
       Lookup_table.Make1D
@@ -354,7 +374,7 @@ module Make_symmetry_coordinate (S : Sym_base) (M : Sym_memo_params) =
       let sym_rank = Symmetry.to_rank (S.get_sym x) in
       class_index * Symmetry.n + sym_rank
 
-    module Move_table = Lookup_table.Make2D (I) (Move.All_fixed_move) (I)
+    module Move_table = Lookup_table.Make2D (I) (Fixed_move) (I)
 
     let move_table =
       match M.status with
@@ -368,17 +388,22 @@ module Make_symmetry_coordinate (S : Sym_base) (M : Sym_memo_params) =
           |> Fn.flip S.perform_fixed_move m
           |> of_base
         in
-        let tbl = Move_table.create (all ()) Move.All_fixed_move.all ~f in
+        let tbl = Move_table.create (all ()) Fixed_move.all ~f in
         (* Move_table.to_file tbl M.move_filepath; *)
-        Printf.printf "Computed move table of size %d in time %fs\n" (I.n * Move.All_fixed_move.n) (Caml_unix.gettimeofday() -. time);
+        Printf.printf "Computed move table of size %d in time %fs\n" (I.n * Fixed_move.n) (Caml_unix.gettimeofday() -. time);
         tbl
 
     (*
       This repeats some logic from Sym_base.
     *)
-    let perform_fixed_move (x : t) (m : Move.All_fixed_move.t) : t =
+    let perform_fixed_move (x : t) (m : Fixed_move.t) : t =
       let s1 = get_symmetry x in
-      let m' = Symmetry.on_fixed_move s1 m in
+      let m' =
+        m
+        |> Fixed_move.to_all_fixed_move
+        |> Symmetry.on_fixed_move s1
+        |> Fixed_move.of_all_fixed_move
+      in
       let y = Move_table.lookup move_table x m' in (* resulting sym coord in rep sym coord for x *)
       let s2 = get_symmetry y in  
       (y |> to_rank |> of_rank) + (Symmetry.mult s2 s1 |> Symmetry.to_rank)
@@ -426,11 +451,16 @@ module type Int_coord_raw =
     val to_perm : int -> Perm.t
   end
 
-module Make (I : Int_coord_raw) : Coordinate =
+module Make
+    (F : Move.Fixed_move)
+    (I : Int_coord_raw)
+    : Coordinate with module Fixed_move = F =
   struct
+    module Fixed_move = F
     (* All raw coordinate behavior is determined by of_perm and to_perm *)
-    module Raw =
+    module Raw : T with module Fixed_move = Fixed_move =
       struct
+        module Fixed_move = F
         include I
         type t = int [@@deriving sexp, compare]
         let to_rank = Fn.id
@@ -438,9 +468,9 @@ module Make (I : Int_coord_raw) : Coordinate =
         let zero = 0
         let next x = if x = n - 1 then None else Some (x + 1)
         let all () = List.init n ~f:Fn.id
-        let perform_fixed_move (x : t) (m : Move.All_fixed_move.t) : t =
+        let perform_fixed_move (x : t) (m : Fixed_move.t) : t =
           m
-          |> Move.All_fixed_move.to_move
+          |> Fixed_move.to_move
           |> Perm.perform_move (I.to_perm x)
           |> I.of_perm
         let perform_symmetry (x : t) (s : Symmetry.t) : t = 
@@ -449,10 +479,13 @@ module Make (I : Int_coord_raw) : Coordinate =
           |> Symmetry.on_perm s
           |> I.of_perm
       end
-    module Make_memoized_coordinate = functor (M : Memo_params) -> Make_memoized_coordinate (Raw) (M)
+    module Make_memoized_coordinate = functor (M : Memo_params) -> (Make_memoized_coordinate (Raw) (M) : T with module Fixed_move = Fixed_move)
     module S = Sym_base_of_raw (Raw)
-    module Make_symmetry_coordinate = functor (M : Sym_memo_params) -> Make_symmetry_coordinate (S) (M)
+    module Make_symmetry_coordinate = functor (M : Sym_memo_params) -> (Make_symmetry_coordinate (S) (M) : T with module Fixed_move = Fixed_move)
   end
+
+module Make_Phase1 : functor (_ : Int_coord_raw) -> Phase1Coordinate = Make (Move.All_fixed_move)
+module Make_Phase2 : functor (_ : Int_coord_raw) -> Phase2Coordinate = Make (Move.G1_fixed_move)
 
 (*
   --------------------
@@ -486,7 +519,7 @@ module Make (I : Int_coord_raw) : Coordinate =
   We treat it as a base-3 number in these calculations where each corner
   gets its own digit in the number.
 *)
-module Twist = Make (
+module Twist = Make_Phase1 (
   struct
     let n = Int.(3 ** 7)
 
@@ -543,7 +576,7 @@ module Twist = Make (
   Therefore, it is an integer in 0..(2^11 - 1) and is treated as a base-2
   number.
 *)
-module Flip = Make (
+module Flip = Make_Phase1 (
   struct
     let n = Int.(2 ** 11)
 
@@ -591,7 +624,7 @@ module Flip = Make (
 
   We map each case to a number in 0..(nCr 12 4 - 1)
 *)
-module UD_slice = Make (
+module UD_slice = Make_Phase1 (
   struct
     let n = ncr 12 4
 
@@ -665,7 +698,7 @@ module UD_slice = Make (
 
   The integer representation is the rank of the record.
 *)
-module Flip_UD_slice = Make (
+module Flip_UD_slice = Make_Phase1 (
   struct
     (*
       module T will be our natural representation of the coordinate,
@@ -737,7 +770,7 @@ module Flip_UD_slice = Make (
   Assumptions:
     C.all is entirely edges or entirely corners.
 *)
-module Perm_coord (C : sig val all : Cubie.t list end) = Make (
+module Perm_coord (C : sig val all : Cubie.t list end) = Make_Phase2 (
   struct
     let k = List.length C.all
     let all_rev = List.rev C.all

@@ -65,12 +65,6 @@
 
 module type T =
   sig
-    (* The Fixed_move module exist just to keep types named t *)
-    module Fixed_move :
-      sig
-        type t
-        val to_fixed_
-      end
     (* The type is hidden, but not really because sexp gives insight *)
     type t [@@deriving sexp, compare]
     (* The coordinate of rank zero *)
@@ -88,7 +82,7 @@ module type T =
     (* Calculates the coordinate for a given permuation *)
     val of_perm : Perm.t -> t
     (* Gets the resulting coordinate after applying a move *)
-    val perform_fixed_move : t -> Move_type.t -> t
+    val perform_fixed_move : t -> Move.All_fixed_move.t -> t
     (* Gets the resulting coordinate after applying a symmetry like S * P * S^-1 *)
     val perform_symmetry : t -> Symmetry.t -> t
     (* Gets a list of all coordinates. USE THIS SPARINGLY *)
@@ -126,22 +120,19 @@ module type Coordinate =
   sig
     module Raw : T
     module Make_memoized_coordinate (_ : Memo_params)     : T
-    (* Symmetry coordinates are about half as fast as memoized coordinates. But they're VERY fast still! *)
+    (* Symmetry coordinates are about half as fast as memoized coordinates. But they're very fast still! *)
     module Make_symmetry_coordinate (_ : Sym_memo_params) : T
   end
 
-module type Phase1Coordinate = Coordinate with type Move_type.t = Move.Fixed_move.t 
-module type Phase2Coordinate = Coordinate with type Move_type.t = Move.G1_fixed_move.t
-
 (* Phase 1 coordinates *)
-module Twist         : Phase1Coordinate
-module Flip          : Phase1Coordinate (* only exposed for testing *)
-module UD_slice      : Phase1Coordinate (* only exposed for testing *)
-module Flip_UD_slice : Phase1Coordinate
+module Twist         : Coordinate
+module Flip          : Coordinate (* only exposed for testing *)
+module UD_slice      : Coordinate (* only exposed for testing *)
+module Flip_UD_slice : Coordinate
 
 (* Phase 2 coordinates *)
 (* Note that these are defined for moves outside of the G1 generators *)
 (* TODO: restrict fixed moves to only be G1 generators *)
-module Edge_perm     : Phase2Coordinate
-module Corner_perm   : Phase2Coordinate
-module UD_slice_perm : Phase2Coordinate
+module Edge_perm     : Coordinate
+module Corner_perm   : Coordinate
+module UD_slice_perm : Coordinate

@@ -53,7 +53,8 @@ module type Fixed_move =
   sig
     module Faceturn :
       sig
-        type t [@@deriving emumerate, variants, sexp, compare]
+        type t [@@deriving sexp, compare]
+        val all : t list
         val to_move : t -> T.t
       end
     type t [@@deriving sexp, compare]
@@ -65,6 +66,7 @@ module type Fixed_move =
     val to_move : t -> T.t
 
     (* allow conversions to and from every possible fixed move *)
+    (* This makes all seem like a subtype of All_fixed_move *)
     val to_all_fixed_move : t -> All_fixed_move_T.t
     val of_all_fixed_move : All_fixed_move_T.t -> t
 
@@ -72,6 +74,6 @@ module type Fixed_move =
   end
 
 (* All fixed moves that generate the cube group *)
-module All_fixed_move : Fixed_move with type t = All_fixed_move_T.t and module Faceturn = Faceturn
+module All_fixed_move : Fixed_move with type t = All_fixed_move_T.t
 (* Only the generators for the G1 subgroup *)
 module G1_fixed_move : Fixed_move

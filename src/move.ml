@@ -139,7 +139,9 @@ module type Fixed_move =
   sig
     module Faceturn :
       sig
-        type t
+        type t [@@deriving sexp, compare]
+        val all : t list
+        val to_move : t -> T.t
       end
     type t [@@deriving sexp, compare]
     val of_faceturn_and_count : Faceturn.t -> int -> t
@@ -155,7 +157,6 @@ module type Fixed_move =
 
     val random_list : int -> t list
   end
-
 
 module All_fixed_move : Fixed_move with type t = All_fixed_move_T.t and module Faceturn = Faceturn =
   struct
