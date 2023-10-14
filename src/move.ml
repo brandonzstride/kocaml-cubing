@@ -157,7 +157,7 @@ module G1_generator :
       | _ -> Generator.to_move y * Generator.to_move y
   end
 
-module Fixed_move =
+module Fixed =
   struct
     (* This is the super type. All S.t can convert to and from it *)
     module Super =

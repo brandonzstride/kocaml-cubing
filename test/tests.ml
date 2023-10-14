@@ -254,8 +254,8 @@ let test_coord_move_sequence n_trials n_moves move_list_generator (module T : Co
   chance of that move not getting hit. I'll take my chances and assume that this
   test is sufficient.     
 *)
-let test_coord_move_sequence_phase1 = test_coord_move_sequence 100 40 Move.Fixed_move.G.random_list
-let test_coord_move_sequence_phase2 = test_coord_move_sequence 100 40 (fun n -> Move.Fixed_move.G1.random_list n |> List.map ~f:Move.Fixed_move.G1.to_super_t)
+let test_coord_move_sequence_phase1 = test_coord_move_sequence 100 40 Move.Fixed.G.random_list
+let test_coord_move_sequence_phase2 = test_coord_move_sequence 100 40 (fun n -> Move.Fixed.G1.random_list n |> List.map ~f:Move.Fixed.G1.to_super_t)
 
 let test_raw_phase1_coord_move_sequence =
   "raw phase1 coord move sequences" >::: [
@@ -345,7 +345,7 @@ module Edge_perm_memo = Coordinate.Edge_perm.Make_memoized_coordinate (M_edge_pe
 
 let test_sym_moves_on_perm =
   (* Try this on random perms with random moves and random symmetries *)
-  let run_trial (p : Perm.t) (ls : Move.Fixed_move.G.t list) (s : Symmetry.t) : unit =
+  let run_trial (p : Perm.t) (ls : Move.Fixed.G.t list) (s : Symmetry.t) : unit =
     let s' = Symmetry.inverse s in
     let p' =
       p
@@ -364,8 +364,8 @@ let test_sym_moves_on_perm =
     List.iter
       (List.init 1000 ~f:(Fn.const ()))
       ~f:(fun _ ->
-        let p = Move.Fixed_move.G.random_list 40 |> Perm.perform_fixed_move_list Perm.identity in (* 40 moves to generate random perm *)
-        let ls = Move.Fixed_move.G.random_list 40 in (* test move sequences of 40 moves to be applied to perm *)
+        let p = Move.Fixed.G.random_list 40 |> Perm.perform_fixed_move_list Perm.identity in (* 40 moves to generate random perm *)
+        let ls = Move.Fixed.G.random_list 40 in (* test move sequences of 40 moves to be applied to perm *)
         let s = Symmetry.random () in
         run_trial p ls s 
       )

@@ -34,7 +34,7 @@ exception LogicallyImpossible of string
 
 module type T =
   sig
-    module Fixed_move : Move.Fixed_move.S
+    module Fixed_move : Move.Fixed.S
     type t [@@deriving sexp, compare]
     val zero : t
     val n : int
@@ -65,7 +65,7 @@ module type Sym_memo_params =
 
 module type Coordinate =
   sig
-    module Fixed_move : Move.Fixed_move.S
+    module Fixed_move : Move.Fixed.S
     module type T = T with module Fixed_move = Fixed_move
 
     module Raw : T
@@ -73,8 +73,8 @@ module type Coordinate =
     module Make_symmetry_coordinate (_ : Sym_memo_params) : T
   end
 
-module type Phase1Coordinate = Coordinate with module Fixed_move = Move.Fixed_move.G
-module type Phase2Coordinate = Coordinate with module Fixed_move = Move.Fixed_move.G1
+module type Phase1Coordinate = Coordinate with module Fixed_move = Move.Fixed.G
+module type Phase2Coordinate = Coordinate with module Fixed_move = Move.Fixed.G1
 
 (* begin implementation *)
 
@@ -476,7 +476,7 @@ module type Int_coord_raw =
   end
 
 module Make
-    (FM : Move.Fixed_move.S)
+    (FM : Move.Fixed.S)
     (I : Int_coord_raw)
     : Coordinate with module Fixed_move = FM =
   struct
@@ -511,8 +511,8 @@ module Make
     module Make_symmetry_coordinate = functor (M : Sym_memo_params) -> (Make_symmetry_coordinate (S) (M) : T)
   end
 
-module Make_Phase1 : functor (_ : Int_coord_raw) -> Phase1Coordinate = Make (Move.Fixed_move.G)
-module Make_Phase2 : functor (_ : Int_coord_raw) -> Phase2Coordinate = Make (Move.Fixed_move.G1)
+module Make_Phase1 : functor (_ : Int_coord_raw) -> Phase1Coordinate = Make (Move.Fixed.G)
+module Make_Phase2 : functor (_ : Int_coord_raw) -> Phase2Coordinate = Make (Move.Fixed.G1)
 
 (*
   --------------------

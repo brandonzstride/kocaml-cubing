@@ -159,10 +159,9 @@ module S =
     let on_perm (s : t) (p : Perm.t) : Perm.t =
       Move.(to_move s * p * to_move (inverse s))
 
-    let on_fixed_move (s : t) (m : Move.Fixed_move.Super.t) : Move.Fixed_move.Super.t = 
-      let open Move in
-      let m' = to_move s * Fixed_move.G.to_move m * to_move (inverse s) in
-      List.find Fixed_move.G.all ~f:(fun a -> equal (Fixed_move.G.to_move a) m')
+    let on_fixed_move (s : t) (m : Move.Fixed.Super.t) : Move.Fixed.Super.t = 
+      let m' = Move.(to_move s * Move.Fixed.G.to_move m * to_move (inverse s)) in
+      List.find Move.Fixed.G.all ~f:(fun a -> Move.equal (Move.Fixed.G.to_move a) m')
       |> function
         | Some m -> m
         | None -> raise (LogicallyImpossible "there does not exist an equivalent move under symmetry")
@@ -241,12 +240,12 @@ let inverse = Sym_inverse_table.lookup inverse_table
   -------------------
 *)
 
-module Sym_move_table = Lookup_table.Make2D (I) (Move.Fixed_move.G) (Move.Fixed_move.G)
+module Sym_move_table = Lookup_table.Make2D (I) (Move.Fixed.G) (Move.Fixed.G)
 
 let sym_move_table =
   Sym_move_table.create
     all
-    Move.Fixed_move.G.all
+    Move.Fixed.G.all
     ~f:(fun x m -> let s = S.of_rank x in S.on_fixed_move s m)
 
 let on_fixed_move = Sym_move_table.lookup sym_move_table

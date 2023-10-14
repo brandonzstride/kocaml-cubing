@@ -65,7 +65,7 @@
 
 module type T =
   sig
-    module Fixed_move : Move.Fixed_move.S
+    module Fixed_move : Move.Fixed.S
     (* The type is hidden, but not really because sexp gives insight *)
     type t [@@deriving sexp, compare]
     (* The coordinate of rank zero *)
@@ -130,7 +130,7 @@ module type Sym_memo_params =
 *)
 module type Coordinate =
   sig
-    module Fixed_move : Move.Fixed_move.S
+    module Fixed_move : Move.Fixed.S
     module type T = T with module Fixed_move = Fixed_move
 
     module Raw : T
@@ -139,8 +139,8 @@ module type Coordinate =
     module Make_symmetry_coordinate (_ : Sym_memo_params) : T
   end
 
-module type Phase1Coordinate = Coordinate with module Fixed_move = Move.Fixed_move.G
-module type Phase2Coordinate = Coordinate with module Fixed_move = Move.Fixed_move.G1
+module type Phase1Coordinate = Coordinate with module Fixed_move = Move.Fixed.G
+module type Phase2Coordinate = Coordinate with module Fixed_move = Move.Fixed.G1
 
 (* Phase 1 coordinates *)
 module Twist         : Phase1Coordinate
