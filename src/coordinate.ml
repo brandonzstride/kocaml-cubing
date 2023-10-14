@@ -32,7 +32,7 @@ open Core
 
 exception LogicallyImpossible of string
 
-module type T =
+module type S =
   sig
     module Fixed_move : Move.Fixed.S
     type t [@@deriving sexp, compare]
@@ -45,8 +45,13 @@ module type T =
     val of_perm : Perm.t -> t
     val perform_fixed_move : t -> Fixed_move.t -> t
     val perform_symmetry : t -> Symmetry.t -> t
-    val get_symmetry : t -> Symmetry.t
     val all : unit -> t list
+  end
+
+module type Sym_S =
+  sig
+    include S
+    val get_symmetry : t -> Symmetry.t
   end
 
 module type Memo_params =
@@ -67,11 +72,10 @@ module type Sym_memo_params =
 module type Coordinate =
   sig
     module Fixed_move : Move.Fixed.S
-    module type T = T with module Fixed_move = Fixed_move
 
-    module Raw : T
-    module Make_memoized_coordinate (_ : Memo_params) : T
-    module Make_symmetry_coordinate (_ : Sym_memo_params) : T
+    module Raw : S with module Fixed_move = Fixed_move
+    module Make_memoized_coordinate (_ : Memo_params) : S with module Fixed_move = Fixed_move
+    module Make_symmetry_coordinate (_ : Sym_memo_params) : Sym_S with module Fixed_move = Fixed_move
   end
 
 module type Phase1Coordinate = Coordinate with module Fixed_move = Move.Fixed.G
@@ -107,9 +111,9 @@ let ncr n r =
   these lookup tables are unfeasable.
 *)
 module Make_memoized_coordinate
-    (Raw : T)
+    (Raw : S)
     (M : Memo_params)
-    : T with module Fixed_move = Raw.Fixed_move =
+    : S with module Fixed_move = Raw.Fixed_move =
   struct
     module Fixed_move = Raw.Fixed_move
     (*
@@ -175,8 +179,6 @@ module Make_memoized_coordinate
       
     let perform_symmetry = Symmetry_table.lookup sym_table
 
-    let get_symmetry _ = Symmetry.id
-
   end
 
 (*
@@ -186,7 +188,7 @@ module Make_memoized_coordinate
 *)
 module type Sym_base =
   sig
-    module Raw : T
+    module Raw : S
     type t
     val of_raw : Raw.t -> t
     val get_rep : t -> Raw.t
@@ -196,9 +198,9 @@ module type Sym_base =
     val all : unit -> t list (* gets all reprsentatives of eq classes *)
   end
 
-module Sym_base_of_raw (T : T) : Sym_base with module Raw = T =
+module Sym_base_of_raw (Raw : S) : Sym_base with module Raw = Raw =
   struct
-    module Raw = T
+    module Raw = Raw
     (*
       In the Sym_base, we have an intermediate symmetry coordinate.
       It is not a full-blown symmetry coordinate as Kociemba describes.
@@ -306,7 +308,7 @@ module Sym_base_of_raw (T : T) : Sym_base with module Raw = T =
 module Make_symmetry_coordinate
     (S : Sym_base)
     (M : Sym_memo_params)
-    : T with module Fixed_move = S.Raw.Fixed_move =
+    : Sym_S with module Fixed_move = S.Raw.Fixed_move =
   struct
 
     module Fixed_move = S.Raw.Fixed_move
@@ -504,10 +506,10 @@ module Make
     : Coordinate with module Fixed_move = FM =
   struct
     module Fixed_move = FM
-    module type T = T with module Fixed_move = Fixed_move
+    module type S = S with module Fixed_move = Fixed_move
 
     (* All raw coordinate behavior is determined by of_perm and to_perm *)
-    module Raw : T =
+    module Raw : S =
       struct
         module Fixed_move = FM
         include I
@@ -527,12 +529,23 @@ module Make
           |> I.to_perm
           |> Symmetry.on_perm s
           |> I.of_perm
-        let get_symmetry _  = Symmetry.id
       end
 
-    module Make_memoized_coordinate = functor (M : Memo_params) -> (Make_memoized_coordinate (Raw) (M) : T)
+    module Make_memoized_coordinate =
+      functor (M : Memo_params) ->
+        (Make_memoized_coordinate
+          (Raw)
+          (M)
+          : S)
+
     module S = Sym_base_of_raw (Raw)
-    module Make_symmetry_coordinate = functor (M : Sym_memo_params) -> (Make_symmetry_coordinate (S) (M) : T)
+
+    module Make_symmetry_coordinate =
+      functor (M : Sym_memo_params) ->
+        (Make_symmetry_coordinate
+          (S)
+          (M)
+          : Sym_S with module Fixed_move = Fixed_move)
   end
 
 module Make_Phase1 : functor (_ : Int_coord_raw) -> Phase1Coordinate = Make (Move.Fixed.G)

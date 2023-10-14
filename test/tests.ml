@@ -33,22 +33,22 @@ module C = Coordinate
 module Ref_module =
   struct
     type t =
-      { m : (module C.T) ref
+      { m : (module C.S) ref
       ; name : string }
   end
 
 (* I use reference cells to hold modules. *)
 let raw_phase1 = let open Ref_module in [
-  { m = ref (module C.Twist.Raw : C.T)         ; name = "twist raw"         };
-  { m = ref (module C.Flip.Raw : C.T)          ; name = "flip raw"          };
-  { m = ref (module C.UD_slice.Raw : C.T)      ; name = "ud slice raw"      };
-  { m = ref (module C.Flip_UD_slice.Raw : C.T) ; name = "flip ud slice raw" };
+  { m = ref (module C.Twist.Raw : C.S)         ; name = "twist raw"         };
+  { m = ref (module C.Flip.Raw : C.S)          ; name = "flip raw"          };
+  { m = ref (module C.UD_slice.Raw : C.S)      ; name = "ud slice raw"      };
+  { m = ref (module C.Flip_UD_slice.Raw : C.S) ; name = "flip ud slice raw" };
 ]
 
 let raw_phase2 = let open Ref_module in [
-  { m = ref (module C.Corner_perm.Raw : C.T)   ; name = "corner perm raw"   };
-  { m = ref (module C.Edge_perm.Raw : C.T)     ; name = "edge perm raw"     };
-  { m = ref (module C.UD_slice_perm.Raw : C.T) ; name = "ud slice perm raw" };
+  { m = ref (module C.Corner_perm.Raw : C.S)   ; name = "corner perm raw"   };
+  { m = ref (module C.Edge_perm.Raw : C.S)     ; name = "edge perm raw"     };
+  { m = ref (module C.UD_slice_perm.Raw : C.S) ; name = "ud slice perm raw" };
 ]
 
 (* module Config =
@@ -163,8 +163,8 @@ let test_all tests ls_name (ls : Ref_module.t list) =
 let test_all1 test ls_name ls =
   test_all (List.init (List.length ls) ~f:(Fn.const test)) ls_name ls
 
-let test_coord_equal x p (module T : Coordinate.T) _ =
-  assert_equal x (p |> T.of_perm |> T.to_rank)
+let test_coord_equal x p (module M : Coordinate.S) _ =
+  assert_equal x (p |> M.of_perm |> M.to_rank)
 
 let test_coord_of_perm =
   let p_c = perm_of_corner_list [(DFR, 2); (UFL, 0); (ULB, 1); (URF, 2); (DRB, 2); (DLF, 0); (DBL, 0); (UBR, 2)] in
@@ -191,37 +191,37 @@ let test_on_all f name =
 
 (* Make sure each only has n total coordinates *)
 let test_counts = 
-  let f (module T : C.T) _ =
+  let f (module M : C.S) _ =
     let rec loop i = function
     | None -> i
-    | Some x -> loop (i + 1) (T.next x)
+    | Some x -> loop (i + 1) (M.next x)
     in
-    assert_equal (loop 0 (Some T.zero)) T.n
+    assert_equal (loop 0 (Some M.zero)) M.n
   in
   test_on_all (make_test f "raw coord counts") "raw coord counts"
 
 (* Make sure that ranks are less than n *)
 let test_ranks =
-  let f (module T : C.T) _ =
+  let f (module M : C.S) _ =
     let rec loop = function
     | None -> ()
-    | Some x -> assert_equal true (T.to_rank x < T.n); loop (T.next x)
+    | Some x -> assert_equal true (M.to_rank x < M.n); loop (M.next x)
     in
-    loop (Some T.zero)
+    loop (Some M.zero)
   in
   test_on_all (make_test f "coord less than n") "coord less than n"
 
 (* Make sure that to_perm is the right inverse of of_perm *)
 let test_inverses =
-  let f (module T : C.T) _ =
+  let f (module M : C.S) _ =
     let verify_inverse x =
-      assert_equal x (x |> T.to_perm |> T.of_perm)
+      assert_equal x (x |> M.to_perm |> M.of_perm)
     in
     let rec loop = function
     | None -> ()
-    | Some x -> verify_inverse x; loop @@ T.next x
+    | Some x -> verify_inverse x; loop @@ M.next x
     in
-    loop (Some T.zero)
+    loop (Some M.zero)
   in
   test_on_all (make_test f "verify inverse") "verify_inverse"
 
@@ -233,13 +233,13 @@ let test_inverses =
   resulting coordinate after moves only done on coordinate.
 *)
 
-let test_coord_move_sequence n_trials n_moves move_list_generator (module T : Coordinate.T) _ =
+let test_coord_move_sequence n_trials n_moves move_list_generator (module M : Coordinate.S) _ =
   let test_module _ =
     let p = move_list_generator n_moves |> Perm.perform_fixed_move_list Perm.identity in (* random starting permutation *)
     let move_list = move_list_generator n_moves in (* moves to apply to permutation *)
     let p' = Perm.perform_fixed_move_list p move_list in (* resulting perm from the moves *actually applied to the cube* *)
-    let x' = List.fold move_list ~init:(T.of_perm p) ~f:(fun x m -> m |> T.Fixed_move.of_super_t |> T.perform_fixed_move x) in (* resulting coord of the moves *only applied to the coordinate* *)
-    assert_equal (T.of_perm p' |> T.to_rank) (x' |> T.to_rank) (* cannot compare perms because some cubies are not relevant to coord *)
+    let x' = List.fold move_list ~init:(M.of_perm p) ~f:(fun x m -> m |> M.Fixed_move.of_super_t |> M.perform_fixed_move x) in (* resulting coord of the moves *only applied to the coordinate* *)
+    assert_equal (M.of_perm p' |> M.to_rank) (x' |> M.to_rank) (* cannot compare perms because some cubies are not relevant to coord *)
     (* ^ note that this means only equivalence classes are compared for symmetry coordinates, which is what we want.
        This is because sometimes two sym coords represent the same cube. Overall, this passes almost every time when we compare
        exact coords, but this is my quick patch on the case where cubes are identical but sym coords are not. *)

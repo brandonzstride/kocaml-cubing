@@ -72,7 +72,7 @@
   that only one representative of each equivalence class is exposed.
 *)
 
-module type T =
+module type S =
   sig
     module Fixed_move : Move.Fixed.S
     (* The type is hidden, but not really because sexp gives insight *)
@@ -95,10 +95,14 @@ module type T =
     val perform_fixed_move : t -> Fixed_move.t -> t
     (* Gets the resulting coordinate after applying a symmetry like S * P * S^-1 *)
     val perform_symmetry : t -> Symmetry.t -> t
-    (* Gets the symmetry that converts to representative coordinate. Is id for non-symmetry coords *)
-    val get_symmetry : t -> Symmetry.t
     (* Gets a list of all coordinates. USE THIS SPARINGLY *)
     val all : unit -> t list
+  end
+
+module type Sym_S = 
+  sig
+    include S
+    val get_symmetry : t -> Symmetry.t
   end
 
 module type Memo_params =
@@ -131,12 +135,11 @@ module type Sym_memo_params =
 module type Coordinate =
   sig
     module Fixed_move : Move.Fixed.S
-    module type T = T with module Fixed_move = Fixed_move
 
-    module Raw : T
-    module Make_memoized_coordinate (_ : Memo_params) : T
+    module Raw : S with module Fixed_move = Fixed_move
+    module Make_memoized_coordinate (_ : Memo_params) : S with module Fixed_move = Fixed_move
     (* Symmetry coordinates are about half as fast as memoized coordinates. But they're VERY fast still! *)
-    module Make_symmetry_coordinate (_ : Sym_memo_params) : T
+    module Make_symmetry_coordinate (_ : Sym_memo_params) : Sym_S with module Fixed_move = Fixed_move
   end
 
 module type Phase1Coordinate = Coordinate with module Fixed_move = Move.Fixed.G
