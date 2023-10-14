@@ -10,12 +10,22 @@ module type S :
     val to_rank : t -> int
   end
 
+(*
+  C1 is a non-symmetry coordinate. C2 is any coordinate.   
+  TODO: can I make symmetry types more explicit then?
+*)
+module Make (C1 : Coordinate.T) (C2 : Coordinate.T) : S =
+  struct
+    type t =
+      { c1 : C1.T
+      ; c2 : C2.T }
+  end
+
 module Phase1 (Twist : Coordinate.T) (Flip_UD_slice : Coordinate.T) : S =
   struct
     type t =
       { twist         : Twist.t
       ; flip_ud_slice : Flip_UD_slice.t }
-
 
     let is_goal_state ({ twist ; flip_ud_slice } : t) : bool =
       Twist.to_rank twist = 0 && Flip_UD_slice.to_rank flip_ud_slice = 0

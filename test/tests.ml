@@ -275,8 +275,8 @@ let test_raw_phase2_coord_move_sequence =
 module M : Coordinate.Memo_params =
   struct
     let status = `Needs_computation
-    let move_filepath = ""
-    let symmetry_filepath = ""
+    let move_filepath = None
+    let symmetry_filepath = None
   end
 
 module Twist_memo = Coordinate.Twist.Make_memoized_coordinate (M)
@@ -393,10 +393,9 @@ let test_sym_moves_on_perm =
 module S : Coordinate.Sym_memo_params =
   struct
     let status = `Needs_computation
-    (* Current implementation doesn't save, so no filepaths needed *)
-    let move_filepath = ""
-    let class_to_rep_filepath = ""
-    let rep_to_class_filepath = ""
+    let move_filepath = None
+    let class_to_rep_filepath = None
+    let rep_to_class_filepath = None
   end
 
 (*
