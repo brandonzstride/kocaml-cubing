@@ -25,6 +25,11 @@ That's the 20,000 foot picture: represent the cube with some integers and search
 
 To take a peek into the code, I suggest starting with the following files: `cubie.mli`, `move.mli` and `coordinate.mli`. Note the module descriptions at the top of the files, and then look at the signatures. Afterwards, look at `coordinate.ml` for some of my more significant work.
 
+## Algorithmic contributions
+
+In all parts of the implementation, I had to think hard about *how* soemthing is done. However, it was all in the effort of implementing exactly the algorithm Kociemba describes. There is only one "improvement" I make to the algorithm itself:
+* Instead of memoizing all fixed moves on a cube, I only memoize the generators for those moves. For the group G, this cuts down on move table size by a factor of three, but it slightly increases computation time (which appears to be negligible).
+
 ## Status
 
 **Summary**:
@@ -57,9 +62,7 @@ Cubes are fully represented by coordinates and are reduced by symmetry classes. 
 ---
 
 **TODO urgent**:
-* Run the long computation on Flip_ud_slice symmetry coordinate to assert that it works.
 * Finish `Cube` module and test it.
-* Limit Phase2 coordinates and cubes to only G1 generators -- consider subtypes?
 
 ---
 
@@ -73,9 +76,10 @@ Cubes are fully represented by coordinates and are reduced by symmetry classes. 
   * Create setup executable to calculate tables.
   * Use config for table locations and setup state.
   * Reintroduce reflection symmetry with working orientations.
+  * Memoize symmetries on the coordinates before computing symmetry coordinate move tables
+    * Will this really increase efficiency? This table will be about as large as the symmetry coordinate move table anyways...
 * Code improvements:
   * Use quickcheck instead of my random selections.
-  * See about reducing tables sizes by only memoizing the faceturn (i.e. move generators) so that less memory is needed, each move would take just slightly more computation. It wouldn't be that hard to "apply all moves" given only the generators.
 * User experience:
   * Front end?
   * opam file and "how to run" instructions.

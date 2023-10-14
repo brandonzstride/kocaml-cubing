@@ -399,7 +399,17 @@ module S : Coordinate.Sym_memo_params =
     let rep_to_class_filepath = ""
   end
 
-(* This is commented because it is very slow. I don't know how long it takes, but it's LONG *)
+(*
+  The following functor call is commented out because it is very slow.
+  To compute and memoize the entire symmetry coordinate...
+  * There were 127166 symmetry classes, all found in 13 seconds
+  * The move table was of size 2,288,988, computed in 462 seconds
+
+  The test passed, so it will not be run again until there is a major change.
+
+  The associated test is `test_sym_phase1_coord_move_sequence`, and as such
+  it is commented out.
+*)
 (* module Flip_UD_slice_sym = Coordinate.Flip_UD_slice.Make_symmetry_coordinate (S) *)
 (* Note that this takes 200 seconds in utop but less than 20 seconds in tests *)
 module Corner_perm_sym = Coordinate.Corner_perm.Make_symmetry_coordinate (S)
