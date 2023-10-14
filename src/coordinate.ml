@@ -385,7 +385,7 @@ module Make_symmetry_coordinate
       because the result might have some symmetry wrt to the representative, so
       to apply a generator n times, we would need to then apply a new symmetry
       to the generator in order to finish applying it (n - 1) times.
-      However, this new generator is not necessarily another generator, so we
+      However, this new move is not necessarily another generator, so we
       could theoretically enter an infinite loop, unless I can prove that the math
       requires quick termination.
       Even if the loop is not infinite, it could be long, and it feels safer to just
