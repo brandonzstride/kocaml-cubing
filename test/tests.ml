@@ -272,21 +272,27 @@ let test_raw_phase2_coord_move_sequence =
     "corner perm"   >:: test_coord_move_sequence_phase2 (module C.Corner_perm.Raw);
   ]
 
-(* module M (F : sig val coord_name : string end) : Coordinate.Memo_params =
+module M : Coordinate.Memo_params =
   struct
     let status = `Needs_computation
-    let (^/) a b = a ^ "/" ^ b
-    let path = "/mnt/c/Users/brand/Documents/kocaml-cubing/test/lookup_tabels/coordinates"
-    let move_filepath = path ^/ "move" ^/ F.coord_name ^ "_move_table.sexp"
-    let symmetry_filepath = path ^/ "sym" ^/ F.coord_name ^ "_sym_table.sexp"
+    let move_filepath = ""
+    let symmetry_filepath = ""
   end
 
-module M_twist = M (struct let coord_name = "twist" end)
-module M_edge_perm = M (struct let coord_name = "edge_perm" end)
+module Twist_memo = Coordinate.Twist.Make_memoized_coordinate (M)
+module Edge_perm_memo = Coordinate.Edge_perm.Make_memoized_coordinate (M)
+module UD_slice_perm_memo = Coordinate.UD_slice_perm.Make_memoized_coordinate (M)
 
-module Twist_memo = Coordinate.Twist.Make_memoized_coordinate (M_twist)
-(* Edge_perm_memo probably fails because it tries to memoize on all moves, not just g1 generators *)
-module Edge_perm_memo = Coordinate.Edge_perm.Make_memoized_coordinate (M_edge_perm) *)
+let test_memoized_phase1_coord_move_sequence =
+  "memoized phase1 coord move sequences" >::: [
+    "twist" >:: test_coord_move_sequence_phase1 (module Twist_memo);
+  ]
+
+let test_memoized_phase2_coord_move_sequence =
+  "memoized phase2 coord move sequences" >::: [
+    "edge perm"     >:: test_coord_move_sequence_phase2 (module Edge_perm_memo);
+    "ud slice perm" >:: test_coord_move_sequence_phase2 (module UD_slice_perm_memo);
+  ]
 
 (*
   ---------------
@@ -417,6 +423,8 @@ let cube_tests = "cube tests" >::: [
   (* test_move_sequence; *)
   test_raw_phase1_coord_move_sequence;
   test_raw_phase2_coord_move_sequence;
+  test_memoized_phase1_coord_move_sequence;
+  test_memoized_phase2_coord_move_sequence;
   (* test_move_symmetries; *)
   test_sym_moves_on_perm;
   (* test_sym_phase1_coord_move_sequence; *)
