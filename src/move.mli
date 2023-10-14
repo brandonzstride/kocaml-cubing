@@ -49,19 +49,8 @@ module type Generator =
     val to_rank : t -> int
   end
 
-(* These are to expose the generator types. There has got to be a more elegant way to do this... *)
-(* module G_T :
-  sig
-    type t = U | R | F | D | B | L
-  end
-
-module G1_T :
-  sig
-    type t = U | D | R2 | F2 | B2 | L2
-  end *)
-
 (* These moves generate the whole cube *)
-module Generator : Generator
+module Generator : Generator (* It'd be nice to expose the generators *)
 (* These generate the G1 subgroup of the cube *)
 module G1_generator : Generator
 
@@ -88,8 +77,6 @@ module Fixed :
         val to_rank : t -> int (* not defined on identity moves *)
         val to_move : t -> T.t
 
-        (* allow conversions to and from every possible fixed move *)
-        (* This makes all seem like a subtype of All_fixed_move *)
         val to_super_t : t -> Super.t
         val of_super_t : Super.t -> t
 
@@ -97,7 +84,7 @@ module Fixed :
         val random_list : int -> t list
       end
 
-    (* Fixed moves on the whole Rubik's cube group G. This can act as Super. *)
+    (* Fixed moves on the whole Rubik's cube group G. This can act as Super because G is the whole group. *)
     module G : S with type t = Super.t and type Generator.t = Generator.t
     (* Fixed moves on the subgroup G1 *)
     module G1 : S with type Generator.t = G1_generator.t
