@@ -12,7 +12,7 @@ exception LogicallyImpossible of string
 
 open Core
 
-module Generator =
+module Sym_generator =
   struct
     (*
       These symmetries generate all possible cube symmetries that
@@ -77,13 +77,13 @@ module Multiples =
     (*
       Some power of a generator. counts are constrained by module S below.   
     *)
-    type t = { gen : Generator.t ; count : int }
+    type t = { gen : Sym_generator.t ; count : int }
 
     let to_move =
-      let open Generator in
+      let open Sym_generator in
       let open Move in
       let aux gen =
-        let m = Generator.to_move gen in
+        let m = Sym_generator.to_move gen in
         function
         | 0 -> Move.id
         | 1 -> m 
@@ -159,10 +159,10 @@ module S =
     let on_perm (s : t) (p : Perm.t) : Perm.t =
       Move.(to_move s * p * to_move (inverse s))
 
-    let on_fixed_move (s : t) (m : Move.All_fixed_move.t) : Move.All_fixed_move.t = 
+    let on_fixed_move (s : t) (m : Move.Fixed_move.Super.t) : Move.Fixed_move.Super.t = 
       let open Move in
-      let m' = to_move s * All_fixed_move.to_move m * to_move (inverse s) in
-      List.find All_fixed_move.all ~f:(fun a -> equal (All_fixed_move.to_move a) m')
+      let m' = to_move s * Fixed_move.G.to_move m * to_move (inverse s) in
+      List.find Fixed_move.G.all ~f:(fun a -> equal (Fixed_move.G.to_move a) m')
       |> function
         | Some m -> m
         | None -> raise (LogicallyImpossible "there does not exist an equivalent move under symmetry")
@@ -241,12 +241,12 @@ let inverse = Sym_inverse_table.lookup inverse_table
   -------------------
 *)
 
-module Sym_move_table = Lookup_table.Make2D (I) (Move.All_fixed_move) (Move.All_fixed_move)
+module Sym_move_table = Lookup_table.Make2D (I) (Move.Fixed_move.G) (Move.Fixed_move.G)
 
 let sym_move_table =
   Sym_move_table.create
     all
-    Move.All_fixed_move.all
+    Move.Fixed_move.G.all
     ~f:(fun x m -> let s = S.of_rank x in S.on_fixed_move s m)
 
 let on_fixed_move = Sym_move_table.lookup sym_move_table

@@ -238,7 +238,7 @@ let test_coord_move_sequence n_trials n_moves move_list_generator (module T : Co
     let p = move_list_generator n_moves |> Perm.perform_fixed_move_list Perm.identity in (* random starting permutation *)
     let move_list = move_list_generator n_moves in (* moves to apply to permutation *)
     let p' = Perm.perform_fixed_move_list p move_list in (* resulting perm from the moves *actually applied to the cube* *)
-    let x' = List.fold move_list ~init:(T.of_perm p) ~f:(fun x m -> m |> T.Fixed_move.of_all_fixed_move |> T.perform_fixed_move x) in (* resulting coord of the moves *only applied to the coordinate* *)
+    let x' = List.fold move_list ~init:(T.of_perm p) ~f:(fun x m -> m |> T.Fixed_move.of_super_t |> T.perform_fixed_move x) in (* resulting coord of the moves *only applied to the coordinate* *)
     assert_equal (T.of_perm p' |> T.to_rank) (x' |> T.to_rank) (* cannot compare perms because some cubies are not relevant to coord *)
     (* ^ note that this means only equivalence classes are compared for symmetry coordinates, which is what we want.
        This is because sometimes two sym coords represent the same cube. Overall, this passes almost every time when we compare
@@ -254,8 +254,8 @@ let test_coord_move_sequence n_trials n_moves move_list_generator (module T : Co
   chance of that move not getting hit. I'll take my chances and assume that this
   test is sufficient.     
 *)
-let test_coord_move_sequence_phase1 = test_coord_move_sequence 100 40 Move.All_fixed_move.random_list
-let test_coord_move_sequence_phase2 = test_coord_move_sequence 100 40 (fun n -> Move.G1_fixed_move.random_list n |> List.map ~f:Move.G1_fixed_move.to_all_fixed_move)
+let test_coord_move_sequence_phase1 = test_coord_move_sequence 100 40 Move.Fixed_move.G.random_list
+let test_coord_move_sequence_phase2 = test_coord_move_sequence 100 40 (fun n -> Move.Fixed_move.G1.random_list n |> List.map ~f:Move.Fixed_move.G1.to_super_t)
 
 let test_raw_phase1_coord_move_sequence =
   "raw phase1 coord move sequences" >::: [
@@ -345,7 +345,7 @@ module Edge_perm_memo = Coordinate.Edge_perm.Make_memoized_coordinate (M_edge_pe
 
 let test_sym_moves_on_perm =
   (* Try this on random perms with random moves and random symmetries *)
-  let run_trial (p : Perm.t) (ls : Move.All_fixed_move.t list) (s : Symmetry.t) : unit =
+  let run_trial (p : Perm.t) (ls : Move.Fixed_move.G.t list) (s : Symmetry.t) : unit =
     let s' = Symmetry.inverse s in
     let p' =
       p
@@ -364,8 +364,8 @@ let test_sym_moves_on_perm =
     List.iter
       (List.init 1000 ~f:(Fn.const ()))
       ~f:(fun _ ->
-        let p = Move.All_fixed_move.random_list 40 |> Perm.perform_fixed_move_list Perm.identity in (* 40 moves to generate random perm *)
-        let ls = Move.All_fixed_move.random_list 40 in (* test move sequences of 40 moves to be applied to perm *)
+        let p = Move.Fixed_move.G.random_list 40 |> Perm.perform_fixed_move_list Perm.identity in (* 40 moves to generate random perm *)
+        let ls = Move.Fixed_move.G.random_list 40 in (* test move sequences of 40 moves to be applied to perm *)
         let s = Symmetry.random () in
         run_trial p ls s 
       )

@@ -35,9 +35,24 @@ let ( * ) a b =
     let abx = a (Cubie.Corner bx.c) |> Cubie.With_orientation.corner_exn in
     Cubie.With_orientation.Corner Cubie.With_orientation.Corner.{ c = abx.c ; o = Modular_int.Z3.(bx.o + abx.o) }
 
-module Faceturn =
+module type Generator =
+  sig
+    type t [@@deriving enumerate, sexp, compare]
+    val to_move : t -> T.t
+    val to_rank : t -> int
+  end
+
+module G_T =
   struct
-    type t = U | R | F | D | B | L [@@deriving enumerate, variants, sexp, compare]
+    type t = U | R | F | D | B | L
+  end
+
+(* These moves generate the whole cube *)
+module Generator : Generator with type t = G_T.t =
+  struct
+    type t = G_T.t = U | R | F | D | B | L [@@deriving enumerate, variants, sexp, compare]
+
+    let to_rank = Variants.to_rank
 
     (* While it's typically more readable to give each match case its own line
         in this specific situation, it seems better to group them on a line *)
@@ -111,193 +126,211 @@ module Faceturn =
         end
   end
 
-module G1_faceturn =
+module G1_T =
   struct
-    type t = U | D | R2 | F2 | B2 | L2 [@@deriving enumerate, variants, sexp, compare]
+    type t = U | D | R2 | F2 | B2 | L2
+  end
 
-    let to_faceturn : t -> Faceturn.t = function
-    | U -> Faceturn.U
-    | D -> Faceturn.D
-    | R2 -> Faceturn.R
-    | F2 -> Faceturn.F
-    | B2 -> Faceturn.B
-    | L2 -> Faceturn.L
+(* These generate the G1 subgroup of the cube *)
+module G1_generator :
+    sig
+      include Generator
+      val to_g_t : t -> Generator.t
+    end with type t = G1_T.t =
+  struct
+    type t = G1_T.t = U | D | R2 | F2 | B2 | L2 [@@deriving enumerate, variants, sexp, compare]
+
+    let to_rank = Variants.to_rank
+
+    let to_g_t : t -> Generator.t = function
+    | U -> G_T.U
+    | D -> G_T.D
+    | R2 -> G_T.R
+    | F2 -> G_T.F
+    | B2 -> G_T.B
+    | L2 -> G_T.L
 
     let to_move x = 
-      let y = to_faceturn x in
+      let y = to_g_t x in
       match x with
-      | U | D -> Faceturn.to_move y
-      | _ -> Faceturn.to_move y * Faceturn.to_move y
+      | U | D -> Generator.to_move y
+      | _ -> Generator.to_move y * Generator.to_move y
   end
 
-module All_fixed_move_T =
+module Fixed_move =
   struct
-    type t = { faceturn : Faceturn.t ; count : Modular_int.Z4.t }
-  end
+    (* This is the super type. All S.t can convert to and from it *)
+    module Super =
+      struct
+        type t = { gen : Generator.t ; c : Modular_int.Z4.t }
+      end
 
-module type Fixed_move =
-  sig
-    module Faceturn :
+    module type S =
       sig
+        module Generator : Generator
         type t [@@deriving sexp, compare]
-        val all : t list
+        val of_gen : Generator.t -> t
+        val of_generator_and_count : Generator.t -> int -> t
+        val to_generator_and_count : t -> (Generator.t * int)
+        val all : t list (* all non-identity moves *)
+        val n : int (* number of non-identity moves *)
+        val to_rank : t -> int (* not defined on identity moves *)
         val to_move : t -> T.t
+
+        (* allow conversions to and from every possible fixed move *)
+        (* This makes all seem like a subtype of All_fixed_move *)
+        val to_super_t : t -> Super.t
+        val of_super_t : Super.t -> t
+
+        (* TODO: exchange this for quickcheck *)
+        val random_list : int -> t list
       end
-    type t [@@deriving sexp, compare]
-    val of_faceturn_and_count : Faceturn.t -> int -> t
-    val to_faceturn_and_count : t -> (Faceturn.t * int)
-    val all : t list (* all non-identity moves *)
-    val n : int (* number of non-identity moves *)
-    val to_rank : t -> int (* not defined on identity moves *)
-    val to_move : t -> T.t
 
-    (* allow conversions to and from every possible fixed move *)
-    val to_all_fixed_move : t -> All_fixed_move_T.t
-    val of_all_fixed_move : All_fixed_move_T.t -> t
-
-    val random_list : int -> t list
-  end
-
-module All_fixed_move : Fixed_move with type t = All_fixed_move_T.t and module Faceturn = Faceturn =
-  struct
-    module Faceturn = Faceturn
-
-    type t = All_fixed_move_T.t = { faceturn : Faceturn.t ; count : Modular_int.Z4.t } [@@deriving enumerate, sexp, compare]
-
-    let of_faceturn_and_count (faceturn : Faceturn.t) (count : int) : t =
-      { faceturn ; count = Modular_int.Z4.of_int count }
-
-    let to_faceturn_and_count (x : t) : (Faceturn.t * int) =
-      x.faceturn, Modular_int.Z4.to_int x.count
-
-    let to_rank x = 
-      assert (Modular_int.Z4.to_int x.count <> 0);
-      Int.(Faceturn.Variants.to_rank x.faceturn * 3 + Modular_int.Z4.to_int x.count - 1)
-
-    let all = 
-      let cmp a b = Int.compare (to_rank a) (to_rank b) in
-      all
-      |> List.filter ~f:(fun x -> Modular_int.Z4.compare x.count Modular_int.Z4.zero <> 0)
-      |> List.sort ~compare:cmp
-
-    let n = List.length all
-
-    let to_move { faceturn ; count } =
-      let m = Faceturn.to_move faceturn in
-      match Modular_int.Z4.to_int count with
-      | 0 -> id (* we do allow count to be zero here. *)
-      | 1 -> m
-      | 2 -> m * m
-      | _ -> m * m * m
-
-    let random_from_list ls _ =
-      ls
-      |> List.length
-      |> Random.int 
-      |> List.nth_exn ls
-
-    let random_list n =
-      List.init n ~f:(random_from_list all)
-
-    let to_all_fixed_move = Fn.id
-    let of_all_fixed_move = Fn.id
-    
-  end
-
-module G1_fixed_move : Fixed_move =
-  struct
-    module Faceturn = G1_faceturn
-
-    module Single =
+    (* Fixed moves on the whole Rubik's cube group G *)
+    module G : S with type t = Super.t and type Generator.t = Generator.t =
       struct
-        type t = { faceturn : Faceturn.t ; count : Modular_int.Z4.t} [@@deriving enumerate, sexp, compare]
+        module Generator = Generator
+        type t = Super.t = { gen : Generator.t ; c : Modular_int.Z4.t } [@@deriving enumerate, sexp, compare]
 
-        let all = List.filter all ~f:(fun x ->
-          match x.faceturn with
-          | U | D -> Modular_int.Z4.to_int x.count <> 0
-          | _ -> false
-          )
+        let of_generator_and_count (gen : Generator.t) (count : int) : t =
+          { gen ; c = Modular_int.Z4.of_int count }
+
+        let of_gen (gen : Generator.t) : t =
+          of_generator_and_count gen 1
+
+        let to_generator_and_count (x : t) : (Generator.t * int) =
+          x.gen, Modular_int.Z4.to_int x.c
+
+        let to_rank x = 
+          assert (Modular_int.Z4.to_int x.c <> 0);
+          Int.(Generator.to_rank x.gen * 3 + Modular_int.Z4.to_int x.c - 1)
+
+        let all = 
+          let cmp a b = Int.compare (to_rank a) (to_rank b) in
+          all
+          |> List.filter ~f:(fun x -> Modular_int.Z4.compare x.c Modular_int.Z4.zero <> 0)
+          |> List.sort ~compare:cmp
+
+        let n = List.length all
+
+        let to_move { gen ; c } =
+          let m = Generator.to_move gen in
+          match Modular_int.Z4.to_int c with
+          | 0 -> id (* we do allow count to be zero here. *)
+          | 1 -> m
+          | 2 -> m * m
+          | _ -> m * m * m
+
+        let random_from_list ls _ =
+          ls
+          |> List.length
+          |> Random.int 
+          |> List.nth_exn ls
+
+        let random_list n =
+          List.init n ~f:(random_from_list all)
+
+        let to_super_t = Fn.id
+        let of_super_t = Fn.id
       end
 
-    module Double =
+    module G1 : S with type Generator.t = G1_generator.t =
       struct
-        type t = { faceturn : Faceturn.t ; count : Modular_int.Z2.t} [@@deriving enumerate, sexp, compare]
-
-        let all = List.filter all ~f:(fun x ->
-          match x.faceturn with
-          | U | D -> false
-          | _ -> Modular_int.Z2.to_int x.count <> 0
-          )
-      end
-
-    type t =
-      | Single of Single.t
-      | Double of Double.t
-      [@@deriving enumerate, sexp, compare]
-
-    let of_faceturn_and_count (faceturn : Faceturn.t) (count : int) : t =
-      match faceturn with
-      | U | D -> Single Single.{ faceturn ; count = Modular_int.Z4.of_int count }
-      | _ -> Double Double.{ faceturn ; count = Modular_int.Z2.of_int count }
-
-    let to_faceturn_and_count : t -> (Faceturn.t * int) =
-      function
-      | Single x -> x.faceturn, Modular_int.Z4.to_int x.count
-      | Double x -> x.faceturn, Modular_int.Z2.to_int x.count
-
-    let to_rank : t -> int = function
-      | Single x -> begin
-        match x.faceturn with
-        | U -> Modular_int.Z4.to_int x.count - 1
-        | D -> Modular_int.Z4.to_int x.count + 2 (* offset by 3 because of U, then must subtract 1 from count *)
-        | _ -> failwith "logically impossible"
-        end
-      | Double x -> Int.(4 + Faceturn.Variants.to_rank x.faceturn)  (* offset by 6 for U,D ranks, then minus 2 for their variant rank *)
-
-    let all = 
-      let is_nonzero_count = function
-        | Single x -> Modular_int.Z4.compare x.count Modular_int.Z4.zero <> 0
-        | Double x -> Modular_int.Z2.compare x.count Modular_int.Z2.zero <> 0
-      in
-      let cmp a b = Int.compare (to_rank a) (to_rank b) in
-      all (* defined from enumerate *)
-      |> List.filter ~f:is_nonzero_count
-      |> List.sort ~compare:cmp
-
-    let n = List.length all
-
-    let to_all_fixed_move (x : t) : All_fixed_move.t =
-      let fturn, count =
-        match x with
-        | Single y -> Faceturn.to_faceturn y.faceturn, Modular_int.Z4.to_int y.count
-        | Double y -> Faceturn.to_faceturn y.faceturn, Int.(Modular_int.Z2.to_int y.count * 2)
-      in
-      All_fixed_move.of_faceturn_and_count fturn count
-
-    let to_move x =
-      x
-      |> to_all_fixed_move
-      |> All_fixed_move.to_move
-
-    let random_from_list ls _ =
-      ls
-      |> List.length
-      |> Random.int 
-      |> List.nth_exn ls
-
-    let random_list n =
-      List.init n ~f:(random_from_list all)
+        module Generator = G1_generator (* has same type as G1_T *)
+        module Single =
+          struct
+            type t = { gen : Generator.t ; c : Modular_int.Z4.t} [@@deriving enumerate, sexp, compare]
     
-    let of_all_fixed_move (x : All_fixed_move.t) : t =
-      let open Faceturn in
-      let fturn, count =
-        match All_fixed_move.to_faceturn_and_count x with
-        | All_fixed_move.Faceturn.U, i -> U, i
-        | All_fixed_move.Faceturn.D, i -> D, i
-        | All_fixed_move.Faceturn.R, i -> R2, i / 2
-        | All_fixed_move.Faceturn.F, i -> F2, i / 2
-        | All_fixed_move.Faceturn.B, i -> B2, i / 2
-        | All_fixed_move.Faceturn.L, i -> L2, i / 2
-      in
-      of_faceturn_and_count fturn count
+            let all = List.filter all ~f:(fun x ->
+              match x.gen with
+              | G1_T.U | G1_T.D -> Modular_int.Z4.to_int x.c <> 0
+              | _ -> false
+              )
+          end
+    
+        module Double =
+          struct
+            type t = { gen : Generator.t ; c : Modular_int.Z2.t} [@@deriving enumerate, sexp, compare]
+    
+            let all = List.filter all ~f:(fun x ->
+              match x.gen with
+              | G1_T.U | G1_T.D -> false
+              | _ -> Modular_int.Z2.to_int x.c <> 0
+              )
+          end
+    
+        type t =
+          | Single of Single.t
+          | Double of Double.t
+          [@@deriving enumerate, sexp, compare]
+    
+        let of_generator_and_count (gen : Generator.t) (count : int) : t =
+          match gen with
+          | G1_T.U | G1_T.D -> Single Single.{ gen ; c = Modular_int.Z4.of_int count }
+          | _ -> Double Double.{ gen ; c = Modular_int.Z2.of_int count }
+
+        let of_gen (gen : Generator.t) : t =
+          of_generator_and_count gen 1
+    
+        let to_generator_and_count : t -> (Generator.t * int) =
+          function
+          | Single x -> x.gen, Modular_int.Z4.to_int x.c
+          | Double x -> x.gen, Modular_int.Z2.to_int x.c
+    
+        let to_rank : t -> int = function
+          | Single x -> begin
+            match x.gen with
+            | G1_T.U -> Modular_int.Z4.to_int x.c - 1
+            | G1_T.D -> Modular_int.Z4.to_int x.c + 2 (* offset by 3 because of U, then must subtract 1 from count *)
+            | _ -> failwith "logically impossible"
+            end
+          | Double x -> Int.(4 + Generator.to_rank x.gen)  (* offset by 6 for U,D ranks, then minus 2 for their variant rank *)
+    
+        let all = 
+          let is_nonzero_count = function
+            | Single x -> Modular_int.Z4.compare x.c Modular_int.Z4.zero <> 0
+            | Double x -> Modular_int.Z2.compare x.c Modular_int.Z2.zero <> 0
+          in
+          let cmp a b = Int.compare (to_rank a) (to_rank b) in
+          all (* defined from enumerate *)
+          |> List.filter ~f:is_nonzero_count
+          |> List.sort ~compare:cmp
+    
+        let n = List.length all
+    
+        let to_super_t (x : t) : Super.t =
+          let gen, count =
+            match x with
+            | Single y -> Generator.to_g_t y.gen, Modular_int.Z4.to_int y.c
+            | Double y -> Generator.to_g_t y.gen, Int.(Modular_int.Z2.to_int y.c * 2)
+          in
+          G.of_generator_and_count gen count
+    
+        let to_move x =
+          x
+          |> to_super_t
+          |> G.to_move
+    
+        let random_from_list ls _ =
+          ls
+          |> List.length
+          |> Random.int 
+          |> List.nth_exn ls
+    
+        let random_list n =
+          List.init n ~f:(random_from_list all)
+        
+        let of_super_t (x : Super.t) : t =
+          let open G1_T in
+          let gen, count =
+            match G.to_generator_and_count x with
+            | G_T.U, i -> U, i
+            | G_T.D, i -> D, i
+            | G_T.R, i -> R2, i / 2
+            | G_T.F, i -> F2, i / 2
+            | G_T.B, i -> B2, i / 2
+            | G_T.L, i -> L2, i / 2
+          in
+          of_generator_and_count gen count
+      end
   end

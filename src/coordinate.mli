@@ -65,8 +65,7 @@
 
 module type T =
   sig
-    (* The Fixed_move module exist just to keep types named t *)
-    module Fixed_move : Move.Fixed_move
+    module Fixed_move : Move.Fixed_move.S
     (* The type is hidden, but not really because sexp gives insight *)
     type t [@@deriving sexp, compare]
     (* The coordinate of rank zero *)
@@ -90,6 +89,12 @@ module type T =
     (* Gets a list of all coordinates. USE THIS SPARINGLY *)
     val all : unit -> t list
   end
+
+(*
+  Could just deal with functors the whole way through. Then to memoize a functor,
+  we need to take the argument we're given, apply it to the functor, and memoize
+  the result.   
+*)
 
 module type Memo_params =
   sig
@@ -125,15 +130,17 @@ module type Sym_memo_params =
 *)
 module type Coordinate =
   sig
-    module Fixed_move : Move.Fixed_move
-    module Raw : T with module Fixed_move = Fixed_move
-    module Make_memoized_coordinate (_ : Memo_params)     : T with module Fixed_move = Fixed_move
+    module Fixed_move : Move.Fixed_move.S
+    module type T = T with module Fixed_move = Fixed_move
+
+    module Raw : T
+    module Make_memoized_coordinate (_ : Memo_params) : T
     (* Symmetry coordinates are about half as fast as memoized coordinates. But they're VERY fast still! *)
-    module Make_symmetry_coordinate (_ : Sym_memo_params) : T with module Fixed_move = Fixed_move
+    module Make_symmetry_coordinate (_ : Sym_memo_params) : T
   end
 
-module type Phase1Coordinate = Coordinate with module Fixed_move = Move.All_fixed_move
-module type Phase2Coordinate = Coordinate with module Fixed_move = Move.G1_fixed_move
+module type Phase1Coordinate = Coordinate with module Fixed_move = Move.Fixed_move.G
+module type Phase2Coordinate = Coordinate with module Fixed_move = Move.Fixed_move.G1
 
 (* Phase 1 coordinates *)
 module Twist         : Phase1Coordinate

@@ -34,7 +34,7 @@ exception LogicallyImpossible of string
 
 module type T =
   sig
-    module Fixed_move : Move.Fixed_move 
+    module Fixed_move : Move.Fixed_move.S
     type t [@@deriving sexp, compare]
     val zero : t
     val n : int
@@ -65,14 +65,16 @@ module type Sym_memo_params =
 
 module type Coordinate =
   sig
-    module Fixed_move : Move.Fixed_move
-    module Raw : T with module Fixed_move = Fixed_move
-    module Make_memoized_coordinate (_ : Memo_params)     : T with module Fixed_move = Fixed_move
-    module Make_symmetry_coordinate (_ : Sym_memo_params) : T with module Fixed_move = Fixed_move
+    module Fixed_move : Move.Fixed_move.S
+    module type T = T with module Fixed_move = Fixed_move
+
+    module Raw : T
+    module Make_memoized_coordinate (_ : Memo_params) : T
+    module Make_symmetry_coordinate (_ : Sym_memo_params) : T
   end
 
-module type Phase1Coordinate = Coordinate with module Fixed_move = Move.All_fixed_move
-module type Phase2Coordinate = Coordinate with module Fixed_move = Move.G1_fixed_move
+module type Phase1Coordinate = Coordinate with module Fixed_move = Move.Fixed_move.G
+module type Phase2Coordinate = Coordinate with module Fixed_move = Move.Fixed_move.G1
 
 (* begin implementation *)
 
@@ -104,11 +106,11 @@ let ncr n r =
   these lookup tables are unfeasable.
 *)
 module Make_memoized_coordinate
-    (T : T)
+    (Raw : T)
     (M : Memo_params)
-    : T with module Fixed_move = T.Fixed_move =
+    : T with module Fixed_move = Raw.Fixed_move =
   struct
-    module Fixed_move = T.Fixed_move
+    module Fixed_move = Raw.Fixed_move
     (*
       The type in a memoized coordinate will be int. This integer
       is exactly the rank of the corresponding coordinate in the
@@ -118,7 +120,7 @@ module Make_memoized_coordinate
       struct
         type t = int [@@deriving sexp, compare]
         let to_rank = Fn.id
-        let n = T.n
+        let n = Raw.n
       end
     include I
 
@@ -128,20 +130,19 @@ module Make_memoized_coordinate
     let all () = List.init n ~f:Fn.id
 
     (* Since I.t has sexp, we can say return type is I *)
-    module Move_table = Lookup_table.Make2D (I) (Fixed_move) (I)
+    module Move_table = Lookup_table.Make2D (I) (Fixed_move.Generator) (I)
     module Symmetry_table = Lookup_table.Make2D (I) (Symmetry) (I)
 
-    (** TODO: only let g1 generators be applied to phase2 coordinates.
-        This is motivation to split into phase1 and phase2 coordinates. *)
     let move_table =
       match M.status with
       | `Is_saved -> Move_table.from_file M.move_filepath
       | `Needs_computation ->
         let time = Caml_unix.gettimeofday () in
-        let f = fun x m -> T.perform_fixed_move (T.of_rank x) m |> T.to_rank in
-        let tbl = Move_table.create (all ()) Fixed_move.all ~f:f in
+        (* Use generator with count 1 to make a fixed_move *)
+        let f = fun x gen -> Raw.perform_fixed_move (Raw.of_rank x) (Fixed_move.of_gen gen) |> Raw.to_rank in
+        let tbl = Move_table.create (all ()) Fixed_move.Generator.all ~f:f in
         (* Move_table.to_file tbl M.move_filepath; *)
-        Printf.printf "Computed move table of size %d in time %fs\n" (T.n * Fixed_move.n) (Caml_unix.gettimeofday() -. time);
+        Printf.printf "Computed move table of size %d in time %fs\n" (Raw.n * List.length Fixed_move.Generator.all) (Caml_unix.gettimeofday() -. time);
         tbl
 
     let sym_table =
@@ -149,18 +150,20 @@ module Make_memoized_coordinate
       | `Is_saved -> Symmetry_table.from_file M.symmetry_filepath
       | `Needs_computation ->
         let time = Caml_unix.gettimeofday () in
-        let f = fun x s -> T.perform_symmetry (T.of_rank x) s |> T.to_rank in
+        let f = fun x s -> Raw.perform_symmetry (Raw.of_rank x) s |> Raw.to_rank in
         let tbl = Symmetry_table.create (all ()) Symmetry.all ~f:f in
         (* Symmetry_table.to_file tbl M.symmetry_filepath; *)
-        Printf.printf "Computed symmetry table of size %d in time %fs\n" (T.n * Symmetry.n) (Caml_unix.gettimeofday() -. time);
+        Printf.printf "Computed symmetry table of size %d in time %fs\n" (Raw.n * Symmetry.n) (Caml_unix.gettimeofday() -. time);
         tbl
 
     (* these don't get called much, and memoizing would take too much space *)
-    let to_perm x = x |> T.of_rank |> T.to_perm
-    let of_perm p = p |> T.of_perm |> T.to_rank
+    let to_perm x = x |> Raw.of_rank |> Raw.to_perm
+    let of_perm p = p |> Raw.of_perm |> Raw.to_rank
 
-    (* If move table only stored generators instead, this would just use Fn.apply_n_times *)
-    let perform_fixed_move = Move_table.lookup     move_table
+    let perform_fixed_move (x : t) (m : Fixed_move.t) : t =
+      let gen, count = Fixed_move.to_generator_and_count m in
+      Fn.apply_n_times ~n:count (fun x -> Move_table.lookup move_table x gen) x
+      
     let perform_symmetry   = Symmetry_table.lookup sym_table
   end
 
@@ -242,14 +245,10 @@ module Sym_base_of_raw (T : T) : Sym_base with module Raw = T =
     let perform_fixed_move (x : t) (m : Raw.Fixed_move.t) : t =
       let m' =
         m
-        |> Raw.Fixed_move.to_all_fixed_move
-        |> Symmetry.on_fixed_move x.sym
-        |> Raw.Fixed_move.of_all_fixed_move
+        |> Raw.Fixed_move.to_super_t 
+        |> Symmetry.on_fixed_move x.sym (* symmetries can act on this type *)
+        |> Raw.Fixed_move.of_super_t (* convert back to a fixed move that Raw knows how to operate on *)
       in
-      (* This could stay as fixed move that is generated from a generator *)
-      (* But still needs to be able to be acted on by symmetry *)
-      (* Or it could be generator as long as symmetry can convert to some new
-         move that raw can use *)
       let y = Raw.perform_fixed_move x.rep m' |> of_raw in
       { rep = y.rep ; sym = Symmetry.mult y.sym x.sym }
       
@@ -366,6 +365,9 @@ module Make_symmetry_coordinate
     let next x = let y = to_rank x in if y = n - 1 then None else Some (y + 1)
     let all () = List.init n ~f:of_rank (* gets only representatives sym coords *)
 
+    (* let is_rep x = x mod Symmetry.n = 0 *)
+    let get_rep x = x |> to_rank |> of_rank
+
     let get_rep_raw_coord (x : t) : S.Raw.t =
       Raw_table.lookup class_to_rep_table (to_rank x)
 
@@ -378,6 +380,22 @@ module Make_symmetry_coordinate
       let sym_rank = Symmetry.to_rank (S.get_sym x) in
       class_index * Symmetry.n + sym_rank
 
+    (*
+      Unfortunately, it's not enough to memoize the result of a move generator
+      because the result might have some symmetry wrt to the representative, so
+      to apply a generator n times, we would need to then apply a new symmetry
+      to the generator in order to finish applying it (n - 1) times.
+      However, this new generator is not necessarily another generator, so we
+      could theoretically enter an infinite loop, unless I can prove that the math
+      requires quick termination.
+      Even if the loop is not infinite, it could be long, and it feels safer to just
+      memoize the result of all moves to ensure quick termination at the cost of
+      extra space.
+      Without the reflection, it does seem that all generators under symmetries are
+      new generators, so this would yield a nice improvement in space requirement,
+      but since I plan to someday use reflections, it's not smart to only memoize
+      the generators.
+    *)
     module Move_table = Lookup_table.Make2D (I) (Fixed_move) (I)
 
     (* This would just be generator, which sym_base can handle just fine
@@ -390,9 +408,9 @@ module Make_symmetry_coordinate
         let f x m =
           x
           |> get_rep_raw_coord
-          |> S.of_raw
-          |> Fn.flip S.perform_fixed_move m
-          |> of_base
+          |> S.of_raw (* sym_base will help us operate on a raw representative of the class *)
+          |> Fn.flip S.perform_fixed_move m 
+          |> of_base (* convert back to full symmetry coordinate from sym_base *)
         in
         let tbl = Move_table.create (all ()) Fixed_move.all ~f in
         (* Move_table.to_file tbl M.move_filepath; *)
@@ -402,25 +420,22 @@ module Make_symmetry_coordinate
     (*
       This repeats some logic from Sym_base.
     *)
-    (* If only generator was memoized in move_table, would just
-       convert fixed move to its generators and apply n times.
-       But would require extra logic of keeping symmetry product right, I think. *)
     let perform_fixed_move (x : t) (m : Fixed_move.t) : t =
       let s1 = get_symmetry x in
       let m' =
         m
-        |> Fixed_move.to_all_fixed_move
+        |> Fixed_move.to_super_t
         |> Symmetry.on_fixed_move s1
-        |> Fixed_move.of_all_fixed_move
+        |> Fixed_move.of_super_t (* is logically save to convert back *)
       in
       let y = Move_table.lookup move_table x m' in (* resulting sym coord in rep sym coord for x *)
       let s2 = get_symmetry y in  
-      (y |> to_rank |> of_rank) + (Symmetry.mult s2 s1 |> Symmetry.to_rank)
+      (get_rep y) + (Symmetry.mult s2 s1 |> Symmetry.to_rank)
 
     let perform_symmetry (x : t) (s : Symmetry.t) : t =
       (* convert to rep coord first by applying x's symmetry, then do s *)
       (* this code is really similar to above. Can I logically connect? *)
-      (x |> to_rank |> of_rank) + (Symmetry.mult s (get_symmetry x) |> Symmetry.to_rank)
+      (get_rep x) + (Symmetry.mult s (get_symmetry x) |> Symmetry.to_rank)
 
     (*
       x <=> P   
@@ -461,15 +476,17 @@ module type Int_coord_raw =
   end
 
 module Make
-    (F : Move.Fixed_move)
+    (FM : Move.Fixed_move.S)
     (I : Int_coord_raw)
-    : Coordinate with module Fixed_move = F =
+    : Coordinate with module Fixed_move = FM =
   struct
-    module Fixed_move = F
+    module Fixed_move = FM
+    module type T = T with module Fixed_move = Fixed_move
+
     (* All raw coordinate behavior is determined by of_perm and to_perm *)
-    module Raw : T with module Fixed_move = Fixed_move =
+    module Raw : T =
       struct
-        module Fixed_move = F
+        module Fixed_move = FM
         include I
         type t = int [@@deriving sexp, compare]
         let to_rank = Fn.id
@@ -488,13 +505,14 @@ module Make
           |> Symmetry.on_perm s
           |> I.of_perm
       end
-    module Make_memoized_coordinate = functor (M : Memo_params) -> (Make_memoized_coordinate (Raw) (M) : T with module Fixed_move = Fixed_move)
+
+    module Make_memoized_coordinate = functor (M : Memo_params) -> (Make_memoized_coordinate (Raw) (M) : T)
     module S = Sym_base_of_raw (Raw)
-    module Make_symmetry_coordinate = functor (M : Sym_memo_params) -> (Make_symmetry_coordinate (S) (M) : T with module Fixed_move = Fixed_move)
+    module Make_symmetry_coordinate = functor (M : Sym_memo_params) -> (Make_symmetry_coordinate (S) (M) : T)
   end
 
-module Make_Phase1 : functor (_ : Int_coord_raw) -> Phase1Coordinate = Make (Move.All_fixed_move)
-module Make_Phase2 : functor (_ : Int_coord_raw) -> Phase2Coordinate = Make (Move.G1_fixed_move)
+module Make_Phase1 : functor (_ : Int_coord_raw) -> Phase1Coordinate = Make (Move.Fixed_move.G)
+module Make_Phase2 : functor (_ : Int_coord_raw) -> Phase2Coordinate = Make (Move.Fixed_move.G1)
 
 (*
   --------------------
