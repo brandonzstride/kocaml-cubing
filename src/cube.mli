@@ -12,11 +12,14 @@
     helps the user recognize which phase it is in and if the cube has reached
     the goal state.
 
+    This currently does not support choosing non-symmetry coordinates to
+    represent the cube during the solving.
+
   Expected usage:
     The solver creates a cube from a permutation to efficiently make moves and
     check for solvedness. The solver should handle converting back to a
 
-  Other considerations:
+  Other comments:
     Might support functionality without memoization to compare speed.
 
     Currently shares some responsibility with the pruning table because these
@@ -35,7 +38,6 @@ module type S :
     val to_rank : t -> int
   end
 
-(* Takes input as "Twist coordinate" and "Flip UD slice coordinate" *)
-module Phase1 (_ : Coordinate.T) (_ : Coordinate.T) : S
+module Phase1 : S  
 (* Takes input as "Edge_perm coordinate", "Corner perm coordinate", and "UD slice perm coordinate" *)
 (* module Phase2 (_ : Coordinate.T) (_ : Coordinate.T) : (_ : Coordinate.T ): S *)

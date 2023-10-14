@@ -10,58 +10,53 @@ module type S :
     val to_rank : t -> int
   end
 
-(*
-  C1 is a non-symmetry coordinate. C2 is any coordinate.   
-  TODO: can I make symmetry types more explicit then?
-*)
-module Make (C1 : Coordinate.T) (C2 : Coordinate.T) : S =
+(* Make a combination of two coordinates, one raw and one sym *)
+module Make (Raw : Coordinate.S) (Sym : Coordinate.Sym_S) : S =
   struct
     type t =
-      { c1 : C1.T
-      ; c2 : C2.T }
-  end
+      { raw : Raw.t
+      ; sym : Sym.t }
 
-module Phase1 (Twist : Coordinate.T) (Flip_UD_slice : Coordinate.T) : S =
-  struct
-    type t =
-      { twist         : Twist.t
-      ; flip_ud_slice : Flip_UD_slice.t }
+    let is_goal_state ({ raw ; sym } : t) : bool =
+      Raw.rank raw = 0 && Sym.rank sym = 0
 
-    let is_goal_state ({ twist ; flip_ud_slice } : t) : bool =
-      Twist.to_rank twist = 0 && Flip_UD_slice.to_rank flip_ud_slice = 0
-      
-    let to_perm ({ twist ; flip_ud_slice } : t) : bool =
-      (* twist and flip_ud_slice don't conflict, so safely multiply the permutations *)
-      (* ... and note that permutations are moves, so I use Move.( * ) *)
-      Move.(Twist.to_perm twist * Flip_UD_slice.to_perm flip_ud_slice)
+    (* assume the coordinates don't conflict *)
+    let to_perm ({ raw ; sym } : t ) : Perm.t =
+      Move.(Raw.to_perm raw * Sym.to_perm sym) 
 
     let of_perm (p : Perm.t) : (t, string) result =
-      (* all perms can be sent to a Phase1 coordinate *)
-      Ok { twist = Twist.of_perm p ; flip_ud_slice = Flip_UD_slice.of_perm p }
+      (* TODO: Coordinate.of_perm might want to use result because this is always Ok currently *)
+      Ok { raw = Raw.of_perm p ; sym = Sym.of_perm p }
 
-    (* For caching, we want to keep similar cubes as close together as possible, so we
-       need to know which coordinate is smaller *)
-    let is_twist_smaller = Twist.n < Flip_UD_slice.n
+    (* Need to know which is smaller to support better caching. *)
+    let is_raw_smaller = Raw.n < Sym.n
 
-    (* TODO: the ranks need to consider the non-symmetry coordinate under the same symmetry *)
-    (* i.e. the symmetry should always be converted to the representative symmetry first
-       and this affects the other non-symmetry coordinate. *)
+    let convert_to_rep ({ raw ; sym } : t) : t =
+      let s = Sym.get_symmetry sym in
+      { raw = Raw.perform_symmetry raw s ; sym = Sym.perform_symmetry sym s }
+
+    (* TODO: consider symmetry. Need to convert to rep and apply sym to raw *)
     let to_rank =
-      if is_twist_smaller then
-        function { twist ; flip_ud_slice } ->
-          Twist.n * Flip_UD_slice.to_rank flip_ud_slice + Twist.to_rank twist
+      if is_raw_smaller then
+        function { raw ; sym } ->
+          (* use convert_to_rep *)
+          Raw.n * Sym.to_rank sym + Raw.to_rank (Raw.perform_symmetry raw (Sym.get_symmetry sym))
       else
-        function { twist ; flip_ud_slice } ->
-          Flip_UD_slice.n * Twist.to_rank twist + Flip_UD_slice.to_rank flip_ud_slice
-
+        function { raw ; sym } ->
+          Sym.n * Raw.to_rank raw + Sym.to_rank sym
+      
     let of_rank =
-      if is_twist_smaller then
-        function x ->
-          { twist = Twist.of_rank (x mod Twist.n)
-          ; flip_ud_slice = Flip_UD_slice.of_rank (x / Twist.n) }
+      if is_raw_smaller then
+        fun x ->
+          { raw = x mod Raw.n
+          ; sym = x / Raw.n }
       else
-        function x ->
-          { twist = Twist.of_rank (x / Flip_UD_slice.n)
-          ; flip_ud_slice = Flip_UD_slice.of_rank (x mod Flip_UD_slice.n) }
-
+        fun x ->
+          { raw = x / Sym.n 
+          ; sym = x mod Sym.n }
   end
+
+(* not compiling because we need some saved coordinates for this to work.
+   I should have already computed the Twist memoized and the Flip_UD_slice
+   symmetry coordinate. *)
+module Phase1 = Make (Coordinate.Twist.Raw) (Coordinate.Flip_UD_slice_sym)
