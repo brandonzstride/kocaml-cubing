@@ -193,7 +193,7 @@ module type Sym_base =
     val of_raw : Raw.t -> t
     val get_rep : t -> Raw.t
     val get_sym : t -> Symmetry.t
-    val perform_fixed_move : t -> Raw.Fixed_move.t -> t
+    val perform_fixed_move_generator : t -> Raw.Fixed_move.Generator.t -> t
     val perform_symmetry : t -> Symmetry.t -> t
     val all : unit -> t list (* gets all reprsentatives of eq classes *)
   end
@@ -256,12 +256,13 @@ module Sym_base_of_raw (Raw : S) : Sym_base with module Raw = Raw =
       So the resulting raw coord is R'' and the resulting
       symmetry is S' * S.
     *)
-    let perform_fixed_move (x : t) (m : Raw.Fixed_move.t) : t =
+    let perform_fixed_move_generator (x : t) (gen : Raw.Fixed_move.Generator.t) : t =
       let m' =
-        m
+        gen
+        |> Raw.Fixed_move.of_gen
         |> Raw.Fixed_move.to_super_t 
         |> Symmetry.on_fixed_move x.sym (* symmetries can act on this type *)
-        |> Raw.Fixed_move.of_super_t (* convert back to a fixed move that Raw knows how to operate on *)
+        |> Raw.Fixed_move.of_super_t (* convert back to a fixed move that Raw knows how to operate on. This will be a generator *)
       in
       let y = Raw.perform_fixed_move x.rep m' |> of_raw in
       { rep = y.rep ; sym = Symmetry.mult y.sym x.sym }
@@ -402,6 +403,7 @@ module Make_symmetry_coordinate
       class_index * Symmetry.n + sym_rank
 
     (*
+      THIS COMMENT IS OUT OF DATE
       Unfortunately, it's not enough to memoize the result of a move generator
       because the result might have some symmetry wrt to the representative, so
       to apply a generator n times, we would need to then apply a new symmetry
@@ -417,45 +419,52 @@ module Make_symmetry_coordinate
       but since I plan to someday use reflections, it's not smart to only memoize
       the generators.
     *)
-    module Move_table = Lookup_table.Make2D (I) (Fixed_move) (I)
+    module Move_generator_table = Lookup_table.Make2D (I) (Fixed_move.Generator) (I)
 
-    (* This would just be generator, which sym_base can handle just fine
-       if converted to a fixed move  *)
-    let move_table =
+    let move_generator_table =
       match M.status with
       | `Is_saved -> begin 
         match M.move_filepath with
-        | Some s -> Move_table.from_file s
-        | None -> failwith "filepath expected but not given for symmetry move table"
+        | Some s -> Move_generator_table.from_file s
+        | None -> failwith "filepath expected but not given for symmetry move generator table"
         end
       | `Needs_computation ->
         let time = Caml_unix.gettimeofday () in
-        let f x m =
+        let f x gen =
           x
           |> get_rep_raw_coord
           |> S.of_raw (* sym_base will help us operate on a raw representative of the class *)
-          |> Fn.flip S.perform_fixed_move m 
+          |> Fn.flip S.perform_fixed_move_generator gen 
           |> of_base (* convert back to full symmetry coordinate from sym_base *)
         in
-        let tbl = Move_table.create (all ()) Fixed_move.all ~f in
-        (match M.move_filepath with None -> () | Some s -> Move_table.to_file tbl s);
-        Printf.printf "Computed move table of size %d in time %fs\n" (I.n * Fixed_move.n) (Caml_unix.gettimeofday() -. time);
+        let tbl = Move_generator_table.create (all ()) Fixed_move.Generator.all ~f in
+        (match M.move_filepath with None -> () | Some s -> Move_generator_table.to_file tbl s);
+        Printf.printf "Computed move table of size %d in time %fs\n" (I.n * (List.length Fixed_move.Generator.all)) (Caml_unix.gettimeofday() -. time);
         tbl
 
     (*
-      This repeats some logic from Sym_base.
+      Send fixed move to generator. Perform it once. Then 
     *)
-    let perform_fixed_move (x : t) (m : Fixed_move.t) : t =
-      let s1 = get_symmetry x in
-      let m' =
-        m
-        |> Fixed_move.to_super_t
-        |> Symmetry.on_fixed_move s1
-        |> Fixed_move.of_super_t (* is logically save to convert back *)
-      in
-      let y = Move_table.lookup move_table x m' in (* resulting sym coord in rep sym coord for x *)
-      let s2 = get_symmetry y in  
-      (get_rep y) + (Symmetry.mult s2 s1 |> Symmetry.to_rank)
+    let rec perform_fixed_move (x : t) (m : Fixed_move.t) : t =
+      match Fixed_move.to_generator_and_count m with
+      | _, 0 -> x
+      | gen, 1 ->
+        let s1 = get_symmetry x in
+        let gen' =
+          gen
+          |> Fixed_move.of_gen 
+          |> Fixed_move.to_super_t
+          |> Symmetry.on_fixed_move s1
+          |> Fixed_move.of_super_t (* is logically safe to convert back *)
+          |> Fixed_move.to_generator_and_count
+          |> Tuple2.get1 (* see test.ml that count must be 1 *)
+        in
+        let y = Move_generator_table.lookup move_generator_table x gen' in (* resulting sym coord in rep sym coord for x *)
+        let s2 = get_symmetry y in  
+        (get_rep y) + (Symmetry.mult s2 s1 |> Symmetry.to_rank)
+      | gen, n ->
+        let x = perform_fixed_move x (Fixed_move.of_gen gen) in
+        perform_fixed_move x (Fixed_move.of_generator_and_count gen (n - 1))
 
     let perform_symmetry (x : t) (s : Symmetry.t) : t =
       (* convert to rep coord first by applying x's symmetry, then do s *)
