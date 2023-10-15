@@ -5,7 +5,7 @@ An OCaml implementation of the Kociemba Two-Phase algorithm.
 
 This project is a work in progress. There is meaningful functionality, but please do not expect it to solve a cube yet. Refer to the **Status** section below to see what works.
 
-**This project is entirely my interpretation of Herbert Kociemba's explanation on [kociemba.org](http://kociemba.org/cube.htm)**. I do not refer to any code that implements the Two-Phase algorithm. I give credit for the ideas behind the algorithm to Herbert Kociemba. Implementation details are all my own, and I will note my algorithmic additions in this README.
+**This project is entirely my interpretation of Herbert Kociemba's explanation on [kociemba.org](http://kociemba.org/cube.htm)**. I do not refer to any code that implements the Two-Phase algorithm. I give credit for the ideas behind the algorithm to Herbert Kociemba. Implementation details are all my own, and I note my algorithmic additions in this README.
 
 Written in `OCaml 5.0.0`. Depends on `Core`, `ppx_jane`, and `OUnit2`.
 
