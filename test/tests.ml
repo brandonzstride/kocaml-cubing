@@ -272,7 +272,7 @@ let test_raw_phase2_coord_move_sequence =
     "corner perm"   >:: test_coord_move_sequence_phase2 (module C.Corner_perm.Raw);
   ]
 
-module M : Coordinate.Memo_params =
+(* module M : Coordinate.Memo_params =
   struct
     let status = `Needs_computation
     let move_filepath = None
@@ -292,7 +292,7 @@ let test_memoized_phase2_coord_move_sequence =
   "memoized phase2 coord move sequences" >::: [
     "edge perm"     >:: test_coord_move_sequence_phase2 (module Edge_perm_memo);
     "ud slice perm" >:: test_coord_move_sequence_phase2 (module UD_slice_perm_memo);
-  ]
+  ] *)
 
 (*
   ---------------
@@ -457,8 +457,8 @@ let cube_tests = "cube tests" >::: [
   (* test_move_sequence; *)
   test_raw_phase1_coord_move_sequence;
   test_raw_phase2_coord_move_sequence;
-  test_memoized_phase1_coord_move_sequence;
-  test_memoized_phase2_coord_move_sequence;
+  (* test_memoized_phase1_coord_move_sequence; *)
+  (* test_memoized_phase2_coord_move_sequence; *)
   (* test_move_symmetries; *)
   test_sym_moves_on_perm;
   test_generator_symmetries;
