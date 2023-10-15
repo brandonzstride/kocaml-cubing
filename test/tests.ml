@@ -371,6 +371,31 @@ let test_sym_moves_on_perm =
       )
     end
 
+(*
+  I'd like to assert that generators under a symmetry are always other generators.
+  This should work with rotations but not with reflections. For now, I don't use
+  reflections, so that's alright.
+*)
+let test_generator_symmetries =
+  let run_test (module F : Move.Fixed.S) _ = 
+    List.iter
+      (List.cartesian_product F.Generator.all Symmetry.all)
+      ~f:(fun (g, s) ->
+        g
+        |> F.of_gen
+        |> F.to_super_t
+        |> Symmetry.on_fixed_move s
+        |> F.of_super_t
+        |> F.to_generator_and_count
+        |> Tuple2.get2
+        |> assert_equal 1
+      )
+  in
+  "Symmetries on generators" >::: [
+    "G" >:: run_test (module Move.Fixed.G);
+    "G1" >:: run_test (module Move.Fixed.G1);
+  ]
+
   
 (*
   -------------------------
@@ -419,6 +444,7 @@ let cube_tests = "cube tests" >::: [
   test_raw_phase2_coord_move_sequence;
   (* test_move_symmetries; *)
   test_sym_moves_on_perm;
+  test_generator_symmetries;
   (* test_sym_phase1_coord_move_sequence; *)
   test_sym_phase2_coord_move_sequence;
 ]
