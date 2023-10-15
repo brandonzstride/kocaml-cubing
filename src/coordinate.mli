@@ -25,6 +25,15 @@
     Cubie -- coordinates are calculated from the cubies of a perm
     Symmetry -- for reduction by symmetry equivalence classes
     Lookup_table -- for memoization for increase efficiency
+
+  Other comments:
+    I currently have to pass around a Move.Fixed_move.S for the coordinates to
+    work with. I couldn't get it to work naturally with functors. What it feels
+    like I need is a module type functor (i.e. a functor that returns a module
+    type), but this doesn't exist as far as I'm aware.
+    Also, I should see about not having `get_symmetry` in all T. The way I have
+    it lets it appear polymorphic so I can treat symmetry and raw coordinates the
+    same.
 *)
 
 (*
@@ -63,7 +72,7 @@
   that only one representative of each equivalence class is exposed.
 *)
 
-module type T =
+module type S =
   sig
     module Fixed_move : Move.Fixed.S
     (* The type is hidden, but not really because sexp gives insight *)
@@ -90,11 +99,11 @@ module type T =
     val all : unit -> t list
   end
 
-(*
-  Could just deal with functors the whole way through. Then to memoize a functor,
-  we need to take the argument we're given, apply it to the functor, and memoize
-  the result.   
-*)
+module type Sym_S = 
+  sig
+    include S
+    val get_symmetry : t -> Symmetry.t
+  end
 
 module type Memo_params =
   sig
@@ -104,23 +113,18 @@ module type Memo_params =
     *)
     val status : [> `Is_saved | `Needs_computation ]
     (* the absolute filepath to where the move table is saved *)
-    val move_filepath : string
+    val move_filepath : string option
     (* the absolute filepath to where the symmetry table is saved *)
-    val symmetry_filepath : string
+    val symmetry_filepath : string option
   end
 
 module type Sym_memo_params =
   sig
     val status : [> `Is_saved | `Needs_computation ]
-    val move_filepath : string
-    val class_to_rep_filepath : string
-    val rep_to_class_filepath : string
+    val move_filepath : string option
+    val class_to_rep_filepath : string option
+    val rep_to_class_filepath : string option
   end
-
-(*
-  I definitely pass around the fixed move too much. Consider passing
-  just the type.
-*)
 
 (*
   A coordinate has a base functionality described within T and included
@@ -131,12 +135,11 @@ module type Sym_memo_params =
 module type Coordinate =
   sig
     module Fixed_move : Move.Fixed.S
-    module type T = T with module Fixed_move = Fixed_move
 
-    module Raw : T
-    module Make_memoized_coordinate (_ : Memo_params) : T
+    module Raw : S with module Fixed_move = Fixed_move
+    module Make_memoized_coordinate (_ : Memo_params) : S with module Fixed_move = Fixed_move
     (* Symmetry coordinates are about half as fast as memoized coordinates. But they're VERY fast still! *)
-    module Make_symmetry_coordinate (_ : Sym_memo_params) : T
+    module Make_symmetry_coordinate (_ : Sym_memo_params) : Sym_S with module Fixed_move = Fixed_move
   end
 
 module type Phase1Coordinate = Coordinate with module Fixed_move = Move.Fixed.G

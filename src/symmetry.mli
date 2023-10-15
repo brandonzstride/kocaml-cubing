@@ -37,8 +37,8 @@ val on_perm : t -> Perm.t -> Perm.t
 val on_fixed_move : t -> Move.Fixed.Super.t -> Move.Fixed.Super.t
 val to_rank : t -> int
 val of_rank : int -> t
+val id : t
 val n : int
 val next : t -> t option
-val zero : t
 val all : t list
 val random : unit -> t (* for testing *)

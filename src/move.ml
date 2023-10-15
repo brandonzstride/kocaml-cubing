@@ -42,6 +42,8 @@ module type Generator =
     val to_rank : t -> int
   end
 
+(* TODO: consider polymorphic variants, which will be slower because the compiler
+   can't optimize as much, but it will be smoother code, I think *)
 module G_T =
   struct
     type t = U | R | F | D | B | L

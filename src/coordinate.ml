@@ -32,7 +32,7 @@ open Core
 
 exception LogicallyImpossible of string
 
-module type T =
+module type S =
   sig
     module Fixed_move : Move.Fixed.S
     type t [@@deriving sexp, compare]
@@ -48,29 +48,34 @@ module type T =
     val all : unit -> t list
   end
 
+module type Sym_S =
+  sig
+    include S
+    val get_symmetry : t -> Symmetry.t
+  end
+
 module type Memo_params =
   sig
     val status : [> `Is_saved | `Needs_computation ]
-    val move_filepath : string
-    val symmetry_filepath : string
+    val move_filepath : string option
+    val symmetry_filepath : string option
   end
 
 module type Sym_memo_params =
   sig
     val status : [> `Is_saved | `Needs_computation ]
-    val move_filepath : string
-    val class_to_rep_filepath : string
-    val rep_to_class_filepath : string
+    val move_filepath : string option
+    val class_to_rep_filepath : string option
+    val rep_to_class_filepath : string option
   end
 
 module type Coordinate =
   sig
     module Fixed_move : Move.Fixed.S
-    module type T = T with module Fixed_move = Fixed_move
 
-    module Raw : T
-    module Make_memoized_coordinate (_ : Memo_params) : T
-    module Make_symmetry_coordinate (_ : Sym_memo_params) : T
+    module Raw : S with module Fixed_move = Fixed_move
+    module Make_memoized_coordinate (_ : Memo_params) : S with module Fixed_move = Fixed_move
+    module Make_symmetry_coordinate (_ : Sym_memo_params) : Sym_S with module Fixed_move = Fixed_move
   end
 
 module type Phase1Coordinate = Coordinate with module Fixed_move = Move.Fixed.G
@@ -106,9 +111,9 @@ let ncr n r =
   these lookup tables are unfeasable.
 *)
 module Make_memoized_coordinate
-    (Raw : T)
+    (Raw : S)
     (M : Memo_params)
-    : T with module Fixed_move = Raw.Fixed_move =
+    : S with module Fixed_move = Raw.Fixed_move =
   struct
     module Fixed_move = Raw.Fixed_move
     (*
@@ -135,24 +140,32 @@ module Make_memoized_coordinate
 
     let move_table =
       match M.status with
-      | `Is_saved -> Move_table.from_file M.move_filepath
+      | `Is_saved -> begin
+        match M.move_filepath with
+        | Some s -> Move_table.from_file s
+        | None -> failwith "filepath expected but not given for memoized move table"
+        end
       | `Needs_computation ->
         let time = Caml_unix.gettimeofday () in
         (* Use generator with count 1 to make a fixed_move *)
         let f = fun x gen -> Raw.perform_fixed_move (Raw.of_rank x) (Fixed_move.of_gen gen) |> Raw.to_rank in
         let tbl = Move_table.create (all ()) Fixed_move.Generator.all ~f:f in
-        (* Move_table.to_file tbl M.move_filepath; *)
+        (match M.move_filepath with None -> () | Some s -> Move_table.to_file tbl s);
         Printf.printf "Computed move table of size %d in time %fs\n" (Raw.n * List.length Fixed_move.Generator.all) (Caml_unix.gettimeofday() -. time);
         tbl
 
     let sym_table =
       match M.status with
-      | `Is_saved -> Symmetry_table.from_file M.symmetry_filepath
+      | `Is_saved -> begin 
+        match M.symmetry_filepath with
+        | Some s -> Symmetry_table.from_file s
+        | None -> failwith "filepath expected but not given for memoized symmetry table"
+        end
       | `Needs_computation ->
         let time = Caml_unix.gettimeofday () in
         let f = fun x s -> Raw.perform_symmetry (Raw.of_rank x) s |> Raw.to_rank in
         let tbl = Symmetry_table.create (all ()) Symmetry.all ~f:f in
-        (* Symmetry_table.to_file tbl M.symmetry_filepath; *)
+        (match M.symmetry_filepath with None -> () | Some s -> Symmetry_table.to_file tbl s);
         Printf.printf "Computed symmetry table of size %d in time %fs\n" (Raw.n * Symmetry.n) (Caml_unix.gettimeofday() -. time);
         tbl
 
@@ -164,7 +177,8 @@ module Make_memoized_coordinate
       let gen, count = Fixed_move.to_generator_and_count m in
       Fn.apply_n_times ~n:count (fun x -> Move_table.lookup move_table x gen) x
       
-    let perform_symmetry   = Symmetry_table.lookup sym_table
+    let perform_symmetry = Symmetry_table.lookup sym_table
+
   end
 
 (*
@@ -174,7 +188,7 @@ module Make_memoized_coordinate
 *)
 module type Sym_base =
   sig
-    module Raw : T
+    module Raw : S
     type t
     val of_raw : Raw.t -> t
     val get_rep : t -> Raw.t
@@ -184,9 +198,9 @@ module type Sym_base =
     val all : unit -> t list (* gets all reprsentatives of eq classes *)
   end
 
-module Sym_base_of_raw (T : T) : Sym_base with module Raw = T =
+module Sym_base_of_raw (Raw : S) : Sym_base with module Raw = Raw =
   struct
-    module Raw = T
+    module Raw = Raw
     (*
       In the Sym_base, we have an intermediate symmetry coordinate.
       It is not a full-blown symmetry coordinate as Kociemba describes.
@@ -284,7 +298,7 @@ module Sym_base_of_raw (T : T) : Sym_base with module Raw = T =
       (Some Raw.zero)
       |> loop Rset.empty Rset.empty
       |> Set.to_list
-      |> List.map ~f:(fun rep -> { rep ; sym = Symmetry.zero })
+      |> List.map ~f:(fun rep -> { rep ; sym = Symmetry.id })
   end
 
 (*
@@ -294,7 +308,7 @@ module Sym_base_of_raw (T : T) : Sym_base with module Raw = T =
 module Make_symmetry_coordinate
     (S : Sym_base)
     (M : Sym_memo_params)
-    : T with module Fixed_move = S.Raw.Fixed_move =
+    : Sym_S with module Fixed_move = S.Raw.Fixed_move =
   struct
 
     module Fixed_move = S.Raw.Fixed_move
@@ -311,7 +325,11 @@ module Make_symmetry_coordinate
     *)
     let class_to_rep_table : Raw_table.t =
       match M.status with
-      | `Is_saved -> Raw_table.from_file M.class_to_rep_filepath
+      | `Is_saved -> begin
+        match M.class_to_rep_filepath with
+        | Some s -> Raw_table.from_file s
+        | None -> failwith "filepath expected but not given for symmetry class to rep table"
+        end
       | `Needs_computation ->
         let time = Caml_unix.gettimeofday () in
         let tbl =
@@ -320,7 +338,7 @@ module Make_symmetry_coordinate
           |> List.sort ~compare:S.Raw.compare
           |> Raw_table.of_list
         in
-        (* Raw_table.to_file tbl M.class_to_rep_filepath; *)
+        (match M.class_to_rep_filepath with None -> () | Some s -> Raw_table.to_file tbl s);
         Printf.printf "Computed class to rep table of size %d in time %fs\n" (Raw_table.get_n tbl) (Caml_unix.gettimeofday() -. time);
         tbl
 
@@ -345,7 +363,11 @@ module Make_symmetry_coordinate
     *)
     let rep_to_class_map : int Raw_map.t =
       match M.status with
-      | `Is_saved -> M.rep_to_class_filepath |> Sexp.load_sexp |> Raw_map.t_of_sexp Int.t_of_sexp
+      | `Is_saved -> begin
+        match M.rep_to_class_filepath with
+        | Some s -> s |> Sexp.load_sexp |> Raw_map.t_of_sexp Int.t_of_sexp
+        | None -> failwith "filepath expected but not given for symmetry rep to class map"
+        end
       | `Needs_computation ->
         let time = Caml_unix.gettimeofday () in
         let map =
@@ -356,7 +378,7 @@ module Make_symmetry_coordinate
           in
           go 0 Raw_map.empty
         in
-        (* Sexp.save M.rep_to_class_filepath (Raw_map.sexp_of_t Int.sexp_of_t map); *)
+        (match M.rep_to_class_filepath with None -> () | Some s -> Sexp.save s (Raw_map.sexp_of_t Int.sexp_of_t map));
         Printf.printf "Computed rep to class map of size %d in time %fs\n" I.n (Caml_unix.gettimeofday() -. time);
         map
 
@@ -371,7 +393,6 @@ module Make_symmetry_coordinate
     let get_rep_raw_coord (x : t) : S.Raw.t =
       Raw_table.lookup class_to_rep_table (to_rank x)
 
-    (* TODO: expose this if necessary *)
     let get_symmetry (x : t) : Symmetry.t =
       x mod Symmetry.n |> Symmetry.of_rank
 
@@ -385,7 +406,7 @@ module Make_symmetry_coordinate
       because the result might have some symmetry wrt to the representative, so
       to apply a generator n times, we would need to then apply a new symmetry
       to the generator in order to finish applying it (n - 1) times.
-      However, this new generator is not necessarily another generator, so we
+      However, this new move is not necessarily another generator, so we
       could theoretically enter an infinite loop, unless I can prove that the math
       requires quick termination.
       Even if the loop is not infinite, it could be long, and it feels safer to just
@@ -402,7 +423,11 @@ module Make_symmetry_coordinate
        if converted to a fixed move  *)
     let move_table =
       match M.status with
-      | `Is_saved -> Move_table.from_file M.move_filepath
+      | `Is_saved -> begin 
+        match M.move_filepath with
+        | Some s -> Move_table.from_file s
+        | None -> failwith "filepath expected but not given for symmetry move table"
+        end
       | `Needs_computation ->
         let time = Caml_unix.gettimeofday () in
         let f x m =
@@ -413,7 +438,7 @@ module Make_symmetry_coordinate
           |> of_base (* convert back to full symmetry coordinate from sym_base *)
         in
         let tbl = Move_table.create (all ()) Fixed_move.all ~f in
-        (* Move_table.to_file tbl M.move_filepath; *)
+        (match M.move_filepath with None -> () | Some s -> Move_table.to_file tbl s);
         Printf.printf "Computed move table of size %d in time %fs\n" (I.n * Fixed_move.n) (Caml_unix.gettimeofday() -. time);
         tbl
 
@@ -481,10 +506,10 @@ module Make
     : Coordinate with module Fixed_move = FM =
   struct
     module Fixed_move = FM
-    module type T = T with module Fixed_move = Fixed_move
+    module type S = S with module Fixed_move = Fixed_move
 
     (* All raw coordinate behavior is determined by of_perm and to_perm *)
-    module Raw : T =
+    module Raw : S =
       struct
         module Fixed_move = FM
         include I
@@ -506,9 +531,21 @@ module Make
           |> I.of_perm
       end
 
-    module Make_memoized_coordinate = functor (M : Memo_params) -> (Make_memoized_coordinate (Raw) (M) : T)
+    module Make_memoized_coordinate =
+      functor (M : Memo_params) ->
+        (Make_memoized_coordinate
+          (Raw)
+          (M)
+          : S)
+
     module S = Sym_base_of_raw (Raw)
-    module Make_symmetry_coordinate = functor (M : Sym_memo_params) -> (Make_symmetry_coordinate (S) (M) : T)
+
+    module Make_symmetry_coordinate =
+      functor (M : Sym_memo_params) ->
+        (Make_symmetry_coordinate
+          (S)
+          (M)
+          : Sym_S with module Fixed_move = Fixed_move)
   end
 
 module Make_Phase1 : functor (_ : Int_coord_raw) -> Phase1Coordinate = Make (Move.Fixed.G)

@@ -33,22 +33,22 @@ module C = Coordinate
 module Ref_module =
   struct
     type t =
-      { m : (module C.T) ref
+      { m : (module C.S) ref
       ; name : string }
   end
 
 (* I use reference cells to hold modules. *)
 let raw_phase1 = let open Ref_module in [
-  { m = ref (module C.Twist.Raw : C.T)         ; name = "twist raw"         };
-  { m = ref (module C.Flip.Raw : C.T)          ; name = "flip raw"          };
-  { m = ref (module C.UD_slice.Raw : C.T)      ; name = "ud slice raw"      };
-  { m = ref (module C.Flip_UD_slice.Raw : C.T) ; name = "flip ud slice raw" };
+  { m = ref (module C.Twist.Raw : C.S)         ; name = "twist raw"         };
+  { m = ref (module C.Flip.Raw : C.S)          ; name = "flip raw"          };
+  { m = ref (module C.UD_slice.Raw : C.S)      ; name = "ud slice raw"      };
+  { m = ref (module C.Flip_UD_slice.Raw : C.S) ; name = "flip ud slice raw" };
 ]
 
 let raw_phase2 = let open Ref_module in [
-  { m = ref (module C.Corner_perm.Raw : C.T)   ; name = "corner perm raw"   };
-  { m = ref (module C.Edge_perm.Raw : C.T)     ; name = "edge perm raw"     };
-  { m = ref (module C.UD_slice_perm.Raw : C.T) ; name = "ud slice perm raw" };
+  { m = ref (module C.Corner_perm.Raw : C.S)   ; name = "corner perm raw"   };
+  { m = ref (module C.Edge_perm.Raw : C.S)     ; name = "edge perm raw"     };
+  { m = ref (module C.UD_slice_perm.Raw : C.S) ; name = "ud slice perm raw" };
 ]
 
 (* module Config =
@@ -163,8 +163,8 @@ let test_all tests ls_name (ls : Ref_module.t list) =
 let test_all1 test ls_name ls =
   test_all (List.init (List.length ls) ~f:(Fn.const test)) ls_name ls
 
-let test_coord_equal x p (module T : Coordinate.T) _ =
-  assert_equal x (p |> T.of_perm |> T.to_rank)
+let test_coord_equal x p (module M : Coordinate.S) _ =
+  assert_equal x (p |> M.of_perm |> M.to_rank)
 
 let test_coord_of_perm =
   let p_c = perm_of_corner_list [(DFR, 2); (UFL, 0); (ULB, 1); (URF, 2); (DRB, 2); (DLF, 0); (DBL, 0); (UBR, 2)] in
@@ -191,37 +191,37 @@ let test_on_all f name =
 
 (* Make sure each only has n total coordinates *)
 let test_counts = 
-  let f (module T : C.T) _ =
+  let f (module M : C.S) _ =
     let rec loop i = function
     | None -> i
-    | Some x -> loop (i + 1) (T.next x)
+    | Some x -> loop (i + 1) (M.next x)
     in
-    assert_equal (loop 0 (Some T.zero)) T.n
+    assert_equal (loop 0 (Some M.zero)) M.n
   in
   test_on_all (make_test f "raw coord counts") "raw coord counts"
 
 (* Make sure that ranks are less than n *)
 let test_ranks =
-  let f (module T : C.T) _ =
+  let f (module M : C.S) _ =
     let rec loop = function
     | None -> ()
-    | Some x -> assert_equal true (T.to_rank x < T.n); loop (T.next x)
+    | Some x -> assert_equal true (M.to_rank x < M.n); loop (M.next x)
     in
-    loop (Some T.zero)
+    loop (Some M.zero)
   in
   test_on_all (make_test f "coord less than n") "coord less than n"
 
 (* Make sure that to_perm is the right inverse of of_perm *)
 let test_inverses =
-  let f (module T : C.T) _ =
+  let f (module M : C.S) _ =
     let verify_inverse x =
-      assert_equal x (x |> T.to_perm |> T.of_perm)
+      assert_equal x (x |> M.to_perm |> M.of_perm)
     in
     let rec loop = function
     | None -> ()
-    | Some x -> verify_inverse x; loop @@ T.next x
+    | Some x -> verify_inverse x; loop @@ M.next x
     in
-    loop (Some T.zero)
+    loop (Some M.zero)
   in
   test_on_all (make_test f "verify inverse") "verify_inverse"
 
@@ -233,13 +233,13 @@ let test_inverses =
   resulting coordinate after moves only done on coordinate.
 *)
 
-let test_coord_move_sequence n_trials n_moves move_list_generator (module T : Coordinate.T) _ =
+let test_coord_move_sequence n_trials n_moves move_list_generator (module M : Coordinate.S) _ =
   let test_module _ =
     let p = move_list_generator n_moves |> Perm.perform_fixed_move_list Perm.identity in (* random starting permutation *)
     let move_list = move_list_generator n_moves in (* moves to apply to permutation *)
     let p' = Perm.perform_fixed_move_list p move_list in (* resulting perm from the moves *actually applied to the cube* *)
-    let x' = List.fold move_list ~init:(T.of_perm p) ~f:(fun x m -> m |> T.Fixed_move.of_super_t |> T.perform_fixed_move x) in (* resulting coord of the moves *only applied to the coordinate* *)
-    assert_equal (T.of_perm p' |> T.to_rank) (x' |> T.to_rank) (* cannot compare perms because some cubies are not relevant to coord *)
+    let x' = List.fold move_list ~init:(M.of_perm p) ~f:(fun x m -> m |> M.Fixed_move.of_super_t |> M.perform_fixed_move x) in (* resulting coord of the moves *only applied to the coordinate* *)
+    assert_equal (M.of_perm p' |> M.to_rank) (x' |> M.to_rank) (* cannot compare perms because some cubies are not relevant to coord *)
     (* ^ note that this means only equivalence classes are compared for symmetry coordinates, which is what we want.
        This is because sometimes two sym coords represent the same cube. Overall, this passes almost every time when we compare
        exact coords, but this is my quick patch on the case where cubes are identical but sym coords are not. *)
@@ -272,21 +272,27 @@ let test_raw_phase2_coord_move_sequence =
     "corner perm"   >:: test_coord_move_sequence_phase2 (module C.Corner_perm.Raw);
   ]
 
-(* module M (F : sig val coord_name : string end) : Coordinate.Memo_params =
+module M : Coordinate.Memo_params =
   struct
     let status = `Needs_computation
-    let (^/) a b = a ^ "/" ^ b
-    let path = "/mnt/c/Users/brand/Documents/kocaml-cubing/test/lookup_tabels/coordinates"
-    let move_filepath = path ^/ "move" ^/ F.coord_name ^ "_move_table.sexp"
-    let symmetry_filepath = path ^/ "sym" ^/ F.coord_name ^ "_sym_table.sexp"
+    let move_filepath = None
+    let symmetry_filepath = None
   end
 
-module M_twist = M (struct let coord_name = "twist" end)
-module M_edge_perm = M (struct let coord_name = "edge_perm" end)
+module Twist_memo = Coordinate.Twist.Make_memoized_coordinate (M)
+module Edge_perm_memo = Coordinate.Edge_perm.Make_memoized_coordinate (M)
+module UD_slice_perm_memo = Coordinate.UD_slice_perm.Make_memoized_coordinate (M)
 
-module Twist_memo = Coordinate.Twist.Make_memoized_coordinate (M_twist)
-(* Edge_perm_memo probably fails because it tries to memoize on all moves, not just g1 generators *)
-module Edge_perm_memo = Coordinate.Edge_perm.Make_memoized_coordinate (M_edge_perm) *)
+let test_memoized_phase1_coord_move_sequence =
+  "memoized phase1 coord move sequences" >::: [
+    "twist" >:: test_coord_move_sequence_phase1 (module Twist_memo);
+  ]
+
+let test_memoized_phase2_coord_move_sequence =
+  "memoized phase2 coord move sequences" >::: [
+    "edge perm"     >:: test_coord_move_sequence_phase2 (module Edge_perm_memo);
+    "ud slice perm" >:: test_coord_move_sequence_phase2 (module UD_slice_perm_memo);
+  ]
 
 (*
   ---------------
@@ -412,13 +418,22 @@ let test_generator_symmetries =
 module S : Coordinate.Sym_memo_params =
   struct
     let status = `Needs_computation
-    (* Current implementation doesn't save, so no filepaths needed *)
-    let move_filepath = ""
-    let class_to_rep_filepath = ""
-    let rep_to_class_filepath = ""
+    let move_filepath = None
+    let class_to_rep_filepath = None
+    let rep_to_class_filepath = None
   end
 
-(* This is commented because it is very slow. I don't know how long it takes, but it's LONG *)
+(*
+  The following functor call is commented out because it is very slow.
+  To compute and memoize the entire symmetry coordinate...
+  * There were 127166 symmetry classes, all found in 13 seconds
+  * The move table was of size 2,288,988, computed in 462 seconds
+
+  The test passed, so it will not be run again until there is a major change.
+
+  The associated test is `test_sym_phase1_coord_move_sequence`, and as such
+  it is commented out.
+*)
 (* module Flip_UD_slice_sym = Coordinate.Flip_UD_slice.Make_symmetry_coordinate (S) *)
 (* Note that this takes 200 seconds in utop but less than 20 seconds in tests *)
 module Corner_perm_sym = Coordinate.Corner_perm.Make_symmetry_coordinate (S)
@@ -442,6 +457,8 @@ let cube_tests = "cube tests" >::: [
   (* test_move_sequence; *)
   test_raw_phase1_coord_move_sequence;
   test_raw_phase2_coord_move_sequence;
+  test_memoized_phase1_coord_move_sequence;
+  test_memoized_phase2_coord_move_sequence;
   (* test_move_symmetries; *)
   test_sym_moves_on_perm;
   test_generator_symmetries;

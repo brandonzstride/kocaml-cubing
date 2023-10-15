@@ -189,7 +189,7 @@ include I
 
 let of_rank = Fn.id
 let next x = if x = n - 1 then None else Some (x + 1)
-let zero = 0
+let id = 0
 let all =
   S.all
   |> List.map ~f:S.to_rank
