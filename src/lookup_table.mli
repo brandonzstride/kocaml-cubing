@@ -35,24 +35,31 @@ module type Return_type =
     type t [@@deriving sexp]
   end
 
-module Make1D (Key : Key) (R : Return_type) :
+module One_dim :
   sig
-    type t
-    val from_file : string -> t
-    val to_file : t -> string -> unit
-    val of_list : R.t list -> t
-    (* Given list *must* be sorted by rank. This is not asserted, and it is up to the user to assert *)
-    val create : Key.t list -> f:(Key.t -> R.t) -> t
-    val lookup : t -> Key.t -> R.t
-    val get_n : t -> int
+    module Make (Key : Key) (R : Return_type) :
+      sig
+        type t
+        val from_file : string -> t
+        val to_file : t -> string -> unit
+        val of_list : R.t list -> t
+        (* Given list *must* be sorted by rank. This is not asserted, and it is up to the user to assert *)
+        val create : Key.t list -> f:(Key.t -> R.t) -> t
+        val lookup : t -> Key.t -> R.t
+        val get_size : t -> int
+      end
   end
 
-module Make2D (Key1 : Key) (Key2 : Key) (R : Return_type) :
+module Two_dim :
   sig
-    type t
-    val from_file : string -> t
-    val to_file : t -> string -> unit
-    (* Given lists *must* be sorted by rank. This is not asserted, and it is up to the user to assert *)
-    val create : ?n1:int -> ?n2:int -> Key1.t list -> Key2.t list -> f:(Key1.t -> Key2.t -> R.t) -> t
-    val lookup : t -> Key1.t -> Key2.t -> R.t
+    module Make (Key1 : Key) (Key2 : Key) (R : Return_type) :
+      sig
+        type t
+        val from_file : string -> t
+        val to_file : t -> string -> unit
+        (* Given lists *must* be sorted by rank. This is not asserted, and it is up to the user to assert *)
+        val create : ?n1:int -> ?n2:int -> Key1.t list -> Key2.t list -> f:(Key1.t -> Key2.t -> R.t) -> t
+        val lookup : t -> Key1.t -> Key2.t -> R.t
+        val get_size : t -> int
+      end
   end

@@ -28,51 +28,28 @@ open OUnit2
   my mind on this later, and it will be a simple change.
 *)
 
-module C = Coordinate
+module C = Coordinate.Exposed_for_testing
 
 module Ref_module =
   struct
     type t =
-      { m : (module C.S) ref
+      { m : (module Coordinate.S) ref
       ; name : string }
   end
 
 (* I use reference cells to hold modules. *)
 let raw_phase1 = let open Ref_module in [
-  { m = ref (module C.Twist.Raw : C.S)         ; name = "twist raw"         };
-  { m = ref (module C.Flip.Raw : C.S)          ; name = "flip raw"          };
-  { m = ref (module C.UD_slice.Raw : C.S)      ; name = "ud slice raw"      };
-  { m = ref (module C.Flip_UD_slice.Raw : C.S) ; name = "flip ud slice raw" };
+  { m = ref (module C.Twist         : Coordinate.S) ; name = "twist raw"         };
+  { m = ref (module C.Flip          : Coordinate.S) ; name = "flip raw"          };
+  { m = ref (module C.UD_slice      : Coordinate.S) ; name = "ud slice raw"      };
+  { m = ref (module C.Flip_UD_slice : Coordinate.S) ; name = "flip ud slice raw" };
 ]
 
 let raw_phase2 = let open Ref_module in [
-  { m = ref (module C.Corner_perm.Raw : C.S)   ; name = "corner perm raw"   };
-  { m = ref (module C.Edge_perm.Raw : C.S)     ; name = "edge perm raw"     };
-  { m = ref (module C.UD_slice_perm.Raw : C.S) ; name = "ud slice perm raw" };
+  { m = ref (module C.Corner_perm   : Coordinate.S) ; name = "corner perm raw"   };
+  { m = ref (module C.Edge_perm     : Coordinate.S) ; name = "edge perm raw"     };
+  { m = ref (module C.UD_slice_perm : Coordinate.S) ; name = "ud slice perm raw" };
 ]
-
-(* module Config =
-  struct
-    module M =
-      struct
-        type t =
-          { module_name : string } [@@deriving sexp]
-      end
-
-    type t =
-      { test_directory : string 
-      ; modules : M.t list } [@@deriving sexp]
-
-    let save x = Sexp.save (x.test_directory ^ "confix.sexp") (sexp_of_t x)
-  end
-
-let config =
-  let open Config in
-  { test_directory = "C:/Users/brand/Documents/kocaml-cubing/test/"
-  ; modules = [] }
-
-Config.save config *)
-
 
 (*
   ----------
@@ -191,7 +168,7 @@ let test_on_all f name =
 
 (* Make sure each only has n total coordinates *)
 let test_counts = 
-  let f (module M : C.S) _ =
+  let f (module M : Coordinate.S) _ =
     let rec loop i = function
     | None -> i
     | Some x -> loop (i + 1) (M.next x)
@@ -202,7 +179,7 @@ let test_counts =
 
 (* Make sure that ranks are less than n *)
 let test_ranks =
-  let f (module M : C.S) _ =
+  let f (module M : Coordinate.S) _ =
     let rec loop = function
     | None -> ()
     | Some x -> assert_equal true (M.to_rank x < M.n); loop (M.next x)
@@ -213,7 +190,7 @@ let test_ranks =
 
 (* Make sure that to_perm is the right inverse of of_perm *)
 let test_inverses =
-  let f (module M : C.S) _ =
+  let f (module M : Coordinate.S) _ =
     let verify_inverse x =
       assert_equal x (x |> M.to_perm |> M.of_perm)
     in
@@ -259,39 +236,37 @@ let test_coord_move_sequence_phase2 = test_coord_move_sequence 100 40 (fun n -> 
 
 let test_raw_phase1_coord_move_sequence =
   "raw phase1 coord move sequences" >::: [
-    "twist"         >:: test_coord_move_sequence_phase1 (module C.Twist.Raw);
-    "flip"          >:: test_coord_move_sequence_phase1 (module C.Flip.Raw);
-    "ud slice"      >:: test_coord_move_sequence_phase1 (module C.UD_slice.Raw);
-    "flip ud slice" >:: test_coord_move_sequence_phase1 (module C.Flip_UD_slice.Raw);
+    "twist"         >:: test_coord_move_sequence_phase1 (module C.Twist);
+    "flip"          >:: test_coord_move_sequence_phase1 (module C.Flip);
+    "ud slice"      >:: test_coord_move_sequence_phase1 (module C.UD_slice);
+    "flip ud slice" >:: test_coord_move_sequence_phase1 (module C.Flip_UD_slice);
   ]
 
 let test_raw_phase2_coord_move_sequence =
   "raw phase2 coord move sequences" >::: [
-    "edge perm"     >:: test_coord_move_sequence_phase2 (module C.Edge_perm.Raw);
-    "ud slice perm" >:: test_coord_move_sequence_phase2 (module C.UD_slice_perm.Raw);
-    "corner perm"   >:: test_coord_move_sequence_phase2 (module C.Corner_perm.Raw);
+    "edge perm"     >:: test_coord_move_sequence_phase2 (module C.Edge_perm);
+    "ud slice perm" >:: test_coord_move_sequence_phase2 (module C.UD_slice_perm);
+    "corner perm"   >:: test_coord_move_sequence_phase2 (module C.Corner_perm);
   ]
 
-module M : Coordinate.Memo_params =
+module P : Coordinate.Params =
   struct
-    let status = `Needs_computation
-    let move_filepath = None
-    let symmetry_filepath = None
+    let status = `Compute (* do not save *)
   end
 
-module Twist_memo = Coordinate.Twist.Make_memoized_coordinate (M)
-module Edge_perm_memo = Coordinate.Edge_perm.Make_memoized_coordinate (M)
-module UD_slice_perm_memo = Coordinate.UD_slice_perm.Make_memoized_coordinate (M)
+module Twist = Coordinate.Twist (P)
+module Edge_perm = Coordinate.Edge_perm (P)
+module UD_slice_perm = Coordinate.UD_slice_perm (P)
 
 let test_memoized_phase1_coord_move_sequence =
   "memoized phase1 coord move sequences" >::: [
-    "twist" >:: test_coord_move_sequence_phase1 (module Twist_memo);
+    "twist" >:: test_coord_move_sequence_phase1 (module Twist);
   ]
 
 let test_memoized_phase2_coord_move_sequence =
   "memoized phase2 coord move sequences" >::: [
-    "edge perm"     >:: test_coord_move_sequence_phase2 (module Edge_perm_memo);
-    "ud slice perm" >:: test_coord_move_sequence_phase2 (module UD_slice_perm_memo);
+    "edge perm"     >:: test_coord_move_sequence_phase2 (module Edge_perm);
+    "ud slice perm" >:: test_coord_move_sequence_phase2 (module UD_slice_perm);
   ]
 
 (*
@@ -327,6 +302,7 @@ let test_memoized_phase2_coord_move_sequence =
   
 *)
 
+(* This commented out because fixed move generators are no longer exposed *)
 (* let test_move_symmetries =
   let sf2 = Symmetry.of_rank 4 in
   let su4 = Symmetry.of_rank 1 in
@@ -390,14 +366,6 @@ let test_sym_moves_on_perm =
   We can do this in the same way as we tested raw coordinates. See the tests above for explanation.
 *)
 
-module S : Coordinate.Sym_memo_params =
-  struct
-    let status = `Needs_computation
-    let move_filepath = None
-    let class_to_rep_filepath = None
-    let rep_to_class_filepath = None
-  end
-
 (*
   The following functor call is commented out because it is very slow.
   To compute and memoize the entire symmetry coordinate...
@@ -409,18 +377,18 @@ module S : Coordinate.Sym_memo_params =
   The associated test is `test_sym_phase1_coord_move_sequence`, and as such
   it is commented out.
 *)
-(* module Flip_UD_slice_sym = Coordinate.Flip_UD_slice.Make_symmetry_coordinate (S) *)
+(* module Flip_UD_slice = Coordinate.Flip_UD_slice (P) *)
 (* Note that this takes 200 seconds in utop but less than 20 seconds in tests *)
-module Corner_perm_sym = Coordinate.Corner_perm.Make_symmetry_coordinate (S)
+module Corner_perm = Coordinate.Corner_perm (P)
 
 (* let test_sym_phase1_coord_move_sequence =
   "sym phase1 coord move sequences" >::: [
-    "flip ud slice" >:: test_coord_move_sequence_phase1 (module Flip_UD_slice_sym)
+    "flip ud slice" >:: test_coord_move_sequence_phase1 (module Flip_UD_slice)
   ] *)
 
 let test_sym_phase2_coord_move_sequence =
   "sym phase2 coord move sequences" >::: [
-    "corner perm" >:: test_coord_move_sequence_phase2 (module Corner_perm_sym);
+    "corner perm" >:: test_coord_move_sequence_phase2 (module Corner_perm);
   ]
 
 let cube_tests = "cube tests" >::: [

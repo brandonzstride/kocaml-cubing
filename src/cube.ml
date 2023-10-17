@@ -56,7 +56,4 @@ module Make (Raw : Coordinate.S) (Sym : Coordinate.Sym_S) : S =
           ; sym = x mod Sym.n }
   end
 
-(* not compiling because we need some saved coordinates for this to work.
-   I should have already computed the Twist memoized and the Flip_UD_slice
-   symmetry coordinate. *)
-module Phase1 = Make (Coordinate.Twist.Raw) (Coordinate.Flip_UD_slice_sym)
+module Phase1 = Make (Coordinate.Twist) (Coordinate.Flip_UD_slice)

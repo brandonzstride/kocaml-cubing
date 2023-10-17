@@ -11,11 +11,11 @@
 
     Memoized coordinates:
     Before any coordinates are defined, I can make a functor to memoize
-    a module of type T. This is trivial and requires only creating lookup
+    a module of type S. This is trivial and requires only creating lookup
     tables.
 
     Symmetry coordinates:
-    I create a Sym_base module to act as an intermediate layer between
+    I create a Sym_IR module to act as an intermediate representation between
     a raw coordinate and a symmetry coordinate. It helps ease the transition
     between the two by providing partial functionality and a similar representation
     to the full symmetry coordinate. Then, I use this to appropriately implement
@@ -30,6 +30,7 @@
 
 open Core
 
+(* Reserved for implementation mistakes--never runtime errors *)
 exception LogicallyImpossible of string
 
 module type S =
@@ -54,32 +55,19 @@ module type Sym_S =
     val get_symmetry : t -> Symmetry.t
   end
 
-module type Memo_params =
+module type Params =
   sig
-    val status : [> `Is_saved | `Needs_computation ]
-    val move_filepath : string option
-    val symmetry_filepath : string option
+    val status :
+      [ `Is_saved_at_directory of string
+      | `Compute_and_save_at_directory of string
+      | `Compute ]
   end
 
-module type Sym_memo_params =
-  sig
-    val status : [> `Is_saved | `Needs_computation ]
-    val move_filepath : string option
-    val class_to_rep_filepath : string option
-    val rep_to_class_filepath : string option
-  end
+module type Phase1_S     = functor (_ : Params) -> (S with module Fixed_move = Move.Fixed.G)
+module type Phase1_sym_S = functor (_ : Params) -> (Sym_S with module Fixed_move = Move.Fixed.G)
 
-module type Coordinate =
-  sig
-    module Fixed_move : Move.Fixed.S
-
-    module Raw : S with module Fixed_move = Fixed_move
-    module Make_memoized_coordinate (_ : Memo_params) : S with module Fixed_move = Fixed_move
-    module Make_symmetry_coordinate (_ : Sym_memo_params) : Sym_S with module Fixed_move = Fixed_move
-  end
-
-module type Phase1Coordinate = Coordinate with module Fixed_move = Move.Fixed.G
-module type Phase2Coordinate = Coordinate with module Fixed_move = Move.Fixed.G1
+module type Phase2_S     = functor (_ : Params) -> (S with module Fixed_move = Move.Fixed.G1)
+module type Phase2_sym_S = functor (_ : Params) -> (Sym_S with module Fixed_move = Move.Fixed.G1)
 
 (* begin implementation *)
 
@@ -102,6 +90,36 @@ let ncr n r =
 
 
 (*
+  This functor helps load in data using the given params.
+
+  It could equally be a function with a first class module.
+*)
+module Load_from_params (P : Params) :
+  sig
+    val load : filename:string -> on_compute:(unit -> 'a) -> to_file:('a -> string -> unit) -> from_file:(string -> 'a) -> 'a 
+  end
+  =
+  struct
+    let compute dirname ~filename ~on_compute =
+      let t0 = Caml_unix.gettimeofday () in
+      let result = on_compute () in
+      Printf.printf "Computed result %s%s in time %fs\n"
+        dirname
+        filename
+        (Caml_unix.gettimeofday () -. t0);
+      result
+
+    let load ~filename ~on_compute ~to_file ~from_file =
+      match P.status with
+      | `Is_saved_at_directory dirname -> from_file (dirname ^ filename)
+      | `Compute_and_save_at_directory dirname ->
+        let x = compute dirname ~filename ~on_compute in
+        to_file x (dirname ^ filename);
+        x
+      | `Compute -> compute "__" ~filename ~on_compute
+  end
+
+(*
   Here is a functor to memoize a given coordinate.
 
   Create lookup tables to save the results of moves and symmetries
@@ -112,7 +130,7 @@ let ncr n r =
 *)
 module Make_memoized_coordinate
     (Raw : S)
-    (M : Memo_params)
+    (P : Params)
     : S with module Fixed_move = Raw.Fixed_move =
   struct
     module Fixed_move = Raw.Fixed_move
@@ -135,41 +153,36 @@ module Make_memoized_coordinate
     let all () = List.init n ~f:Fn.id
 
     (* Since I.t has sexp, we can say return type is I *)
-    module Move_table = Lookup_table.Make2D (I) (Fixed_move.Generator) (I)
-    module Symmetry_table = Lookup_table.Make2D (I) (Symmetry) (I)
+    module Move_table = Lookup_table.Two_dim.Make (I) (Fixed_move.Generator) (I)
+    module Symmetry_table = Lookup_table.Two_dim.Make (I) (Symmetry) (I)
+
+    module Loader = Load_from_params (P)
 
     let move_table =
-      match M.status with
-      | `Is_saved -> begin
-        match M.move_filepath with
-        | Some s -> Move_table.from_file s
-        | None -> failwith "filepath expected but not given for memoized move table"
-        end
-      | `Needs_computation ->
-        let time = Caml_unix.gettimeofday () in
-        (* Use generator with count 1 to make a fixed_move *)
-        let f = fun x gen -> Raw.perform_fixed_move (Raw.of_rank x) (Fixed_move.of_gen gen) |> Raw.to_rank in
-        let tbl = Move_table.create (all ()) Fixed_move.Generator.all ~f:f in
-        (match M.move_filepath with None -> () | Some s -> Move_table.to_file tbl s);
-        Printf.printf "Computed move table of size %d in time %fs\n" (Raw.n * List.length Fixed_move.Generator.all) (Caml_unix.gettimeofday() -. time);
-        tbl
+      Loader.load
+        ~filename:"move_table.sexp"
+        ~on_compute:(fun () ->
+            Move_table.create (all ()) Fixed_move.Generator.all ~f:(
+              fun x gen ->
+                Raw.perform_fixed_move (Raw.of_rank x) (Fixed_move.of_gen gen) |> Raw.to_rank
+            )
+          )
+        ~to_file:Move_table.to_file
+        ~from_file:Move_table.from_file
 
     let sym_table =
-      match M.status with
-      | `Is_saved -> begin 
-        match M.symmetry_filepath with
-        | Some s -> Symmetry_table.from_file s
-        | None -> failwith "filepath expected but not given for memoized symmetry table"
-        end
-      | `Needs_computation ->
-        let time = Caml_unix.gettimeofday () in
-        let f = fun x s -> Raw.perform_symmetry (Raw.of_rank x) s |> Raw.to_rank in
-        let tbl = Symmetry_table.create (all ()) Symmetry.all ~f:f in
-        (match M.symmetry_filepath with None -> () | Some s -> Symmetry_table.to_file tbl s);
-        Printf.printf "Computed symmetry table of size %d in time %fs\n" (Raw.n * Symmetry.n) (Caml_unix.gettimeofday() -. time);
-        tbl
+      Loader.load
+        ~filename:"symmetry_table.sexp"
+        ~on_compute:(fun () ->
+            Symmetry_table.create (all ()) Symmetry.all ~f:(
+              fun x s ->
+                Raw.perform_symmetry (Raw.of_rank x) s |> Raw.to_rank
+            )
+          )
+        ~to_file:Symmetry_table.to_file
+        ~from_file:Symmetry_table.from_file
 
-    (* these don't get called much, and memoizing would take too much space *)
+    (* these don't get called much, and memoizing is not possible due to space requirements *)
     let to_perm x = x |> Raw.of_rank |> Raw.to_perm
     let of_perm p = p |> Raw.of_perm |> Raw.to_rank
 
@@ -182,11 +195,14 @@ module Make_memoized_coordinate
   end
 
 (*
-  It's helpful to me to have an intermediate step between a raw coordinate
-  and a symmetry coordinate. I let this be a Sym_base module. It can behave
-  like a symmetry coordinate but without any of the expensive operations.   
+  It's helpful to me to have an intermediate representation between the raw
+  coordinate and the symmetry coordinate. I let this be the Sym_IR module. It
+  can behave like a symmetry coordinate, but it cannot handle the expensive
+  operations.
+
+  It has no startup cost (e.g. no memoization or computation when created).
 *)
-module type Sym_base =
+module type Sym_IR =
   sig
     module Raw : S
     type t
@@ -198,11 +214,11 @@ module type Sym_base =
     val all : unit -> t list (* gets all reprsentatives of eq classes *)
   end
 
-module Sym_base_of_raw (Raw : S) : Sym_base with module Raw = Raw =
+module Make_sym_IR (Raw : S) : Sym_IR with module Raw = Raw =
   struct
     module Raw = Raw
     (*
-      In the Sym_base, we have an intermediate symmetry coordinate.
+      In the Sym_IR, we have an intermediate symmetry coordinate.
       It is not a full-blown symmetry coordinate as Kociemba describes.
       The representative is kept as a raw coordinate, and the symmetry
       is not yet stored as rank.
@@ -217,24 +233,18 @@ module Sym_base_of_raw (Raw : S) : Sym_base with module Raw = Raw =
     let get_sym_class x =
       List.map Symmetry.all ~f:(fun s -> Raw.perform_symmetry x s)
 
-    let argmin compare = 
-      function
-      | [] -> None
-      | a :: ls -> begin
-        let rec find m mi i = function
-        | [] -> Some (m, mi)
-        | hd :: tl when compare hd m < 0 -> find hd i (i + 1) tl
-        | _  :: tl -> find m mi (i + 1) tl
-        in
-        find a 0 1 ls
-      end
+    let min_and_index_exn compare = function
+    | [] -> failwith "empty list given when one element is expected to find minimum"
+    | hd :: tl ->
+      List.foldi tl ~init:(hd, 0) ~f:(fun i (m, mi) x ->
+        if compare x m < 0 then (x, i + 1) else (m, mi)
+      )
 
     let of_raw (r : Raw.t) : t =
       let rep, sym_i = 
         r
         |> get_sym_class
-        |> argmin Raw.compare (* find smallest raw coordinate in class and its symmetry index *)
-        |> Option.value_exn
+        |> min_and_index_exn Raw.compare (* find smallest raw coordinate in class and its symmetry index *)
       in
       { rep ; sym = Symmetry.of_rank sym_i }
     
@@ -302,46 +312,41 @@ module Sym_base_of_raw (Raw : S) : Sym_base with module Raw = Raw =
   end
 
 (*
-  Now I'll use the Sym_base to create a full-blown symmetry coordinate.
+  Now I'll use the Sym_IR to create a full-blown symmetry coordinate.
   This will be expensive to compute because it needs to call Sym_base.all.
 *)
 module Make_symmetry_coordinate
-    (S : Sym_base)
-    (M : Sym_memo_params)
+    (S : Sym_IR)
+    (P : Params)
     : Sym_S with module Fixed_move = S.Raw.Fixed_move =
   struct
 
     module Fixed_move = S.Raw.Fixed_move
     
     module Raw_table =
-      Lookup_table.Make1D
+      Lookup_table.One_dim.Make
         (struct type t = int let to_rank = Fn.id end)
         (S.Raw)
     
     module Raw_map = Map.Make (S.Raw)
 
+    module Loader = Load_from_params (P)
+
     (*
       Maps a symmetry class index to a representative raw coordinate.   
     *)
-    let class_to_rep_table : Raw_table.t =
-      match M.status with
-      | `Is_saved -> begin
-        match M.class_to_rep_filepath with
-        | Some s -> Raw_table.from_file s
-        | None -> failwith "filepath expected but not given for symmetry class to rep table"
-        end
-      | `Needs_computation ->
-        let time = Caml_unix.gettimeofday () in
-        let tbl =
-          S.all ()
-          |> List.map ~f:S.get_rep
-          |> List.sort ~compare:S.Raw.compare
-          |> Raw_table.of_list
-        in
-        (match M.class_to_rep_filepath with None -> () | Some s -> Raw_table.to_file tbl s);
-        Printf.printf "Computed class to rep table of size %d in time %fs\n" (Raw_table.get_n tbl) (Caml_unix.gettimeofday() -. time);
-        tbl
-
+    let class_to_rep_table =
+      Loader.load
+        ~filename:"class_to_rep_table.sexp"
+        ~on_compute:(fun () ->
+            S.all ()
+            |> List.map ~f:S.get_rep
+            |> List.sort ~compare:S.Raw.compare
+            |> Raw_table.of_list
+          )
+        ~to_file:Raw_table.to_file
+        ~from_file:Raw_table.from_file
+    
     (*
       Externally, it should appear as if there are only as many symmetry
       coordinates as there are equivalence classes.
@@ -351,7 +356,7 @@ module Make_symmetry_coordinate
       struct
         type t = int [@@deriving sexp, compare]
         let to_rank x = x / Symmetry.n (* gets rank of representative *)
-        let n = Raw_table.get_n class_to_rep_table
+        let n = Raw_table.get_size class_to_rep_table
       end
 
     include I
@@ -361,26 +366,19 @@ module Make_symmetry_coordinate
       is not compatible because we need the rank of the representative among
       the other representatives, which would be slow to compute for each rep.
     *)
-    let rep_to_class_map : int Raw_map.t =
-      match M.status with
-      | `Is_saved -> begin
-        match M.rep_to_class_filepath with
-        | Some s -> s |> Sexp.load_sexp |> Raw_map.t_of_sexp Int.t_of_sexp
-        | None -> failwith "filepath expected but not given for symmetry rep to class map"
-        end
-      | `Needs_computation ->
-        let time = Caml_unix.gettimeofday () in
-        let map =
+    let rep_to_class_map =
+      Loader.load
+       ~filename:"rep_to_class_map.sexp"
+       ~on_compute:(fun () ->
           let f = Raw_table.lookup class_to_rep_table in
           let rec go i map =
             if i = n then map
             else Map.add_exn map ~key:(f i) ~data:i |> go (i + 1)
           in
           go 0 Raw_map.empty
-        in
-        (match M.rep_to_class_filepath with None -> () | Some s -> Sexp.save s (Raw_map.sexp_of_t Int.sexp_of_t map));
-        Printf.printf "Computed rep to class map of size %d in time %fs\n" I.n (Caml_unix.gettimeofday() -. time);
-        map
+        )
+      ~to_file:(fun map s -> Sexp.save s (Raw_map.sexp_of_t Int.sexp_of_t map))
+      ~from_file:(fun s -> Sexp.load_sexp s |> Raw_map.t_of_sexp Int.t_of_sexp)
 
     let of_rank = Int.( * ) Symmetry.n (* gets representative sym coordinate from rank *)
     let zero = 0
@@ -396,6 +394,7 @@ module Make_symmetry_coordinate
     let get_symmetry (x : t) : Symmetry.t =
       x mod Symmetry.n |> Symmetry.of_rank
 
+    (* Gets the t from the intermediate representation--call that the "base" of this module *)
     let of_base (x : S.t) : t =
       let class_index = Map.find_exn rep_to_class_map (S.get_rep x) in
       let sym_rank = Symmetry.to_rank (S.get_sym x) in
@@ -417,33 +416,29 @@ module Make_symmetry_coordinate
       but since I plan to someday use reflections, it's not smart to only memoize
       the generators.
     *)
-    module Move_table = Lookup_table.Make2D (I) (Fixed_move) (I)
+    module Move_table = Lookup_table.Two_dim.Make (I) (Fixed_move) (I)
 
     (* This would just be generator, which sym_base can handle just fine
        if converted to a fixed move  *)
     let move_table =
-      match M.status with
-      | `Is_saved -> begin 
-        match M.move_filepath with
-        | Some s -> Move_table.from_file s
-        | None -> failwith "filepath expected but not given for symmetry move table"
-        end
-      | `Needs_computation ->
-        let time = Caml_unix.gettimeofday () in
-        let f x m =
-          x
-          |> get_rep_raw_coord
-          |> S.of_raw (* sym_base will help us operate on a raw representative of the class *)
-          |> Fn.flip S.perform_fixed_move m 
-          |> of_base (* convert back to full symmetry coordinate from sym_base *)
-        in
-        let tbl = Move_table.create (all ()) Fixed_move.all ~f in
-        (match M.move_filepath with None -> () | Some s -> Move_table.to_file tbl s);
-        Printf.printf "Computed move table of size %d in time %fs\n" (I.n * Fixed_move.n) (Caml_unix.gettimeofday() -. time);
-        tbl
+      Loader.load
+        ~filename:"move_table.sexp"
+        ~on_compute:(fun () ->
+            Move_table.create (all ()) Fixed_move.all ~f:(
+              fun x m ->
+                x
+                |> get_rep_raw_coord
+                |> S.of_raw (* Sym_IR will help us operate on a raw representative of the class *)
+                |> Fn.flip S.perform_fixed_move m
+                |> of_base (* convert back to full symmetry coordinate from Sym_IR *)
+            )
+          )
+        ~to_file:Move_table.to_file
+        ~from_file:Move_table.from_file
 
     (*
-      This repeats some logic from Sym_base.
+      This repeats some logic from Sym_IR. See the comment there for why
+      this works.
     *)
     let perform_fixed_move (x : t) (m : Fixed_move.t) : t =
       let s1 = get_symmetry x in
@@ -500,56 +495,34 @@ module type Int_coord_raw =
     val to_perm : int -> Perm.t
   end
 
-module Make
-    (FM : Move.Fixed.S)
-    (I : Int_coord_raw)
-    : Coordinate with module Fixed_move = FM =
+(* Makes a raw, unmemoized_coordinate *)
+module Make_raw
+  (FM : Move.Fixed.S)
+  (I : Int_coord_raw)
+  : S with module Fixed_move = FM =
   struct
     module Fixed_move = FM
-    module type S = S with module Fixed_move = Fixed_move
-
-    (* All raw coordinate behavior is determined by of_perm and to_perm *)
-    module Raw : S =
-      struct
-        module Fixed_move = FM
-        include I
-        type t = int [@@deriving sexp, compare]
-        let to_rank = Fn.id
-        let of_rank x = assert (x < n); x
-        let zero = 0
-        let next x = if x = n - 1 then None else Some (x + 1)
-        let all () = List.init n ~f:Fn.id
-        let perform_fixed_move (x : t) (m : Fixed_move.t) : t =
-          m
-          |> Fixed_move.to_move
-          |> Perm.perform_move (I.to_perm x)
-          |> I.of_perm
-        let perform_symmetry (x : t) (s : Symmetry.t) : t = 
-          x
-          |> I.to_perm
-          |> Symmetry.on_perm s
-          |> I.of_perm
-      end
-
-    module Make_memoized_coordinate =
-      functor (M : Memo_params) ->
-        (Make_memoized_coordinate
-          (Raw)
-          (M)
-          : S)
-
-    module S = Sym_base_of_raw (Raw)
-
-    module Make_symmetry_coordinate =
-      functor (M : Sym_memo_params) ->
-        (Make_symmetry_coordinate
-          (S)
-          (M)
-          : Sym_S with module Fixed_move = Fixed_move)
+    include I
+    type t = int [@@deriving sexp, compare]
+    let to_rank = Fn.id
+    let of_rank x = assert (x < n); x
+    let zero = 0
+    let next x = if x = n - 1 then None else Some (x + 1)
+    let all () = List.init n ~f:Fn.id
+    let perform_fixed_move (x : t) (m : Fixed_move.t) : t =
+      m
+      |> Fixed_move.to_move
+      |> Perm.perform_move (I.to_perm x)
+      |> I.of_perm
+    let perform_symmetry (x : t) (s : Symmetry.t) : t = 
+      x
+      |> I.to_perm
+      |> Symmetry.on_perm s
+      |> I.of_perm
   end
 
-module Make_Phase1 : functor (_ : Int_coord_raw) -> Phase1Coordinate = Make (Move.Fixed.G)
-module Make_Phase2 : functor (_ : Int_coord_raw) -> Phase2Coordinate = Make (Move.Fixed.G1)
+module Make_phase1_raw = Make_raw (Move.Fixed.G)
+module Make_phase2_raw = Make_raw (Move.Fixed.G1)
 
 (*
   --------------------
@@ -583,7 +556,7 @@ module Make_Phase2 : functor (_ : Int_coord_raw) -> Phase2Coordinate = Make (Mov
   We treat it as a base-3 number in these calculations where each corner
   gets its own digit in the number.
 *)
-module Twist = Make_Phase1 (
+module Twist_raw = Make_phase1_raw (
   struct
     let n = Int.(3 ** 7)
 
@@ -640,7 +613,7 @@ module Twist = Make_Phase1 (
   Therefore, it is an integer in 0..(2^11 - 1) and is treated as a base-2
   number.
 *)
-module Flip = Make_Phase1 (
+module Flip_raw = Make_phase1_raw (
   struct
     let n = Int.(2 ** 11)
 
@@ -688,7 +661,7 @@ module Flip = Make_Phase1 (
 
   We map each case to a number in 0..(nCr 12 4 - 1)
 *)
-module UD_slice = Make_Phase1 (
+module UD_slice_raw = Make_phase1_raw (
   struct
     let n = ncr 12 4
 
@@ -761,45 +734,56 @@ module UD_slice = Make_Phase1 (
   rest of the coordinates.
 
   The integer representation is the rank of the record.
+
+  Use a general functor to create it.
 *)
-module Flip_UD_slice = Make_Phase1 (
+module Join
+  (F : Move.Fixed.S)
+  (C1 : S with module Fixed_move = F)
+  (C2 : S with module Fixed_move = F)
+  : S with module Fixed_move = F =
   struct
-    (*
-      module T will be our natural representation of the coordinate,
-      and we use it to create the `to_perm` and `of_perm` functions
-      for integers.
-    *)
-    module T =
+    module I : Int_coord_raw = 
       struct
-        type t =
-          { ud_slice : UD_slice.Raw.t
-          ; flip     : Flip.Raw.t }
-        
-        let to_rank { ud_slice ; flip } =
-          Flip.Raw.n * UD_slice.Raw.to_rank ud_slice + Flip.Raw.to_rank flip
+        (*
+          module T will be our natural representation of the coordinate,
+          and we use it to create the `to_perm` and `of_perm` functions
+          for integers.
+        *)
+        module T = 
+          struct
+            type t =
+              { c1 : C1.t
+              ; c2 : C2.t }
+            
+            let to_rank { c1 ; c2 } : int =
+              C1.n * C2.to_rank c2 + C1.to_rank c1
 
-        let of_rank i =
-          { ud_slice = UD_slice.Raw.of_rank (i / Flip.Raw.n)
-          ; flip     = Flip.Raw.of_rank (i mod Flip.Raw.n) }
-      end
+            let of_rank i : t =
+              { c1 = C1.of_rank (i mod C1.n)
+              ; c2 = C2.of_rank (i / C1.n) }
+          end
 
-    let n = UD_slice.Raw.n * Flip.Raw.n
-    
-    (*
-      `Flip.to_perm` preserves permutation but changes orientation,
-      and `UD_slice.to_perm` preserves orientation but changes
-      permutation, so we can combine them by simply composing via
-      Move multiplication.   
-    *)
-    let to_perm (x : int) : Perm.t =
-      let y = T.of_rank x in
-      Move.(UD_slice.Raw.to_perm y.ud_slice * Flip.Raw.to_perm y.flip)
+        let n = C1.n * C2.n
 
-    let of_perm (p : Perm.t) : int =
-      T.{ ud_slice = UD_slice.Raw.of_perm p ; flip = Flip.Raw.of_perm p }
-      |> T.to_rank
+        (*
+          Assume C1 and C2 don't conflict, and C2 comes first.
+        *)
+        let to_perm (x : int) : Perm.t =
+          let y = T.of_rank x in
+          Move.(C2.to_perm y.c2 * C1.to_perm y.c1)
+
+        let of_perm (p : Perm.t) : int =
+          T.{ c1 = C1.of_perm p ; c2 = C2.of_perm p }
+          |> T.to_rank
+      end (* end I : Int_coord_raw *)
+
+    include Make_raw (F) (I)
   end
-) 
+
+module Flip_UD_slice_raw = Join (Move.Fixed.G) (Flip_raw) (UD_slice_raw)
+
+module Flip_UD_slice_sym_IR = Make_sym_IR (Flip_UD_slice_raw)
 
 (*
   -------------------
@@ -834,7 +818,7 @@ module Flip_UD_slice = Make_Phase1 (
   Assumptions:
     C.all is entirely edges or entirely corners.
 *)
-module Perm_coord (C : sig val all : Cubie.t list end) = Make_Phase2 (
+module Make_perm_coord_raw (C : sig val all : Cubie.t list end) = Make_phase2_raw (
   struct
     let k = List.length C.all
     let all_rev = List.rev C.all
@@ -898,7 +882,7 @@ module Perm_coord (C : sig val all : Cubie.t list end) = Make_Phase2 (
 )
 
 
-module Edge_perm = Perm_coord (
+module Edge_perm_raw = Make_perm_coord_raw (
   struct
     let all =
       Cubie.Edge.all_ud_edges
@@ -906,7 +890,7 @@ module Edge_perm = Perm_coord (
   end
 )
 
-module Corner_perm = Perm_coord (
+module Corner_perm_raw = Make_perm_coord_raw (
   struct
     let all =
       Cubie.Corner.all
@@ -914,10 +898,50 @@ module Corner_perm = Perm_coord (
   end
 )
 
-module UD_slice_perm = Perm_coord (
+module Corner_perm_sym_IR = Make_sym_IR (Corner_perm_raw)
+
+module UD_slice_perm_raw = Make_perm_coord_raw (
   struct
     let all =
       Cubie.Edge.all_ud_slice_edges
       |> List.map ~f:(fun x -> Cubie.Edge x)
   end
 ) 
+
+
+(*
+  -------------------------------- 
+  SATISFYING THE MODULE SIGNATURES
+  --------------------------------
+
+  It's finally time to fulfill the mli by providing the memoized coordinates.
+
+  The user only needs to specify with some Params how the memoization is found/computed.
+*)
+
+(* Phase 1 *)
+module Twist         : Phase1_S     = Make_memoized_coordinate (Twist_raw)
+module Flip_UD_slice : Phase1_sym_S = Make_symmetry_coordinate (Flip_UD_slice_sym_IR)
+
+(* Phase 2 *)
+module Edge_perm     : Phase2_S     = Make_memoized_coordinate (Edge_perm_raw)
+module Corner_perm   : Phase2_sym_S = Make_symmetry_coordinate (Corner_perm_sym_IR)
+module UD_slice_perm : Phase2_S     = Make_memoized_coordinate (UD_slice_perm_raw)
+
+
+module Exposed_for_testing =
+  struct
+    module type Phase1_raw_S = S with module Fixed_move = Move.Fixed.G
+    module type Phase2_raw_S = S with module Fixed_move = Move.Fixed.G1
+
+    (* Phase 1 *)
+    module Twist         = Twist_raw
+    module Flip          = Flip_raw
+    module UD_slice      = UD_slice_raw
+    module Flip_UD_slice = Flip_UD_slice_raw
+
+    (* Phase 2 *)
+    module Edge_perm     = Edge_perm_raw
+    module Corner_perm   = Corner_perm_raw
+    module UD_slice_perm = UD_slice_perm_raw
+  end

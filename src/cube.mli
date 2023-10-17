@@ -38,6 +38,8 @@ module type S :
     val to_rank : t -> int
   end
 
+(* Supports Twist and Flip_UD_slice coordinates *)
 module Phase1 : S  
-(* Takes input as "Edge_perm coordinate", "Corner perm coordinate", and "UD slice perm coordinate" *)
-(* module Phase2 (_ : Coordinate.T) (_ : Coordinate.T) : (_ : Coordinate.T ): S *)
+
+(* Supports Edge_perm, Corner_perm, and UD_slice_perm coordinates *)
+(* module Phase2 : S *)

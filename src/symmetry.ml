@@ -209,7 +209,7 @@ let random () = Random.int n
   -------------------
 *)
 
-module Sym_mult_table = Lookup_table.Make2D (I) (I) (I)
+module Sym_mult_table = Lookup_table.Two_dim.Make (I) (I) (I)
 
 let sym_mult_table =
   Sym_mult_table.create
@@ -225,7 +225,7 @@ let mult = Sym_mult_table.lookup sym_mult_table
   -----------------
 *)
 
-module Sym_inverse_table = Lookup_table.Make1D (I) (I)
+module Sym_inverse_table = Lookup_table.One_dim.Make (I) (I)
 
 let inverse_table =
   Sym_inverse_table.create
@@ -240,7 +240,7 @@ let inverse = Sym_inverse_table.lookup inverse_table
   -------------------
 *)
 
-module Sym_move_table = Lookup_table.Make2D (I) (Move.Fixed.G) (Move.Fixed.G)
+module Sym_move_table = Lookup_table.Two_dim.Make (I) (Move.Fixed.G) (Move.Fixed.G)
 
 let sym_move_table =
   Sym_move_table.create

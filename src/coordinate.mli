@@ -31,9 +31,6 @@
     work with. I couldn't get it to work naturally with functors. What it feels
     like I need is a module type functor (i.e. a functor that returns a module
     type), but this doesn't exist as far as I'm aware.
-    Also, I should see about not having `get_symmetry` in all T. The way I have
-    it lets it appear polymorphic so I can treat symmetry and raw coordinates the
-    same.
 *)
 
 (*
@@ -72,8 +69,12 @@
   that only one representative of each equivalence class is exposed.
 *)
 
+(*
+  The signature of any raw coordinate...   
+*)
 module type S =
   sig
+    (* Stores the cube moves that this coordinate supports *)
     module Fixed_move : Move.Fixed.S
     (* The type is hidden, but not really because sexp gives insight *)
     type t [@@deriving sexp, compare]
@@ -99,59 +100,56 @@ module type S =
     val all : unit -> t list
   end
 
+(*
+  Symmetry coordinates have been reduced to symmetry equivalence classes.
+*)
 module type Sym_S = 
   sig
     include S
+    (* Get the symmetry that converts it to the representative of the symmetry class *)
     val get_symmetry : t -> Symmetry.t
   end
 
-module type Memo_params =
+module type Params =
   sig
-    (*
-      `Is_saved          => can just read the results from the files.
-      `Needs_computation => must compute results and then save to files.   
-    *)
-    val status : [> `Is_saved | `Needs_computation ]
-    (* the absolute filepath to where the move table is saved *)
-    val move_filepath : string option
-    (* the absolute filepath to where the symmetry table is saved *)
-    val symmetry_filepath : string option
+    val status :
+      [ `Is_saved_at_directory of string
+      | `Compute_and_save_at_directory of string
+      | `Compute ]
   end
 
-module type Sym_memo_params =
+(* Phase 1 coordinates use all fixed moves that generate the group G *)
+module type Phase1_S     = functor (_ : Params) -> (S with module Fixed_move = Move.Fixed.G)
+module type Phase1_sym_S = functor (_ : Params) -> (Sym_S with module Fixed_move = Move.Fixed.G)
+
+(* Phase 2 coordinates use only the moves that generate the subgroup G1 *)
+module type Phase2_S     = functor (_ : Params) -> (S with module Fixed_move = Move.Fixed.G1)
+module type Phase2_sym_S = functor (_ : Params) -> (Sym_S with module Fixed_move = Move.Fixed.G1)
+
+(* Exposed coordinates for regular use *)
+(* Phase 1*)
+module Twist         : Phase1_S
+module Flip_UD_slice : Phase1_sym_S
+
+(* Phase 2 *)
+module Edge_perm     : Phase2_S
+module UD_slice_perm : Phase2_S
+module Corner_perm   : Phase2_sym_S
+
+(* Raw coordinates that are only exposed for testing and not to be used during solving *)
+module Exposed_for_testing :
   sig
-    val status : [> `Is_saved | `Needs_computation ]
-    val move_filepath : string option
-    val class_to_rep_filepath : string option
-    val rep_to_class_filepath : string option
+    module type Phase1_raw_S = S with module Fixed_move = Move.Fixed.G
+    module type Phase2_raw_S = S with module Fixed_move = Move.Fixed.G1
+
+    (* Phase 1 *)
+    module Twist         : Phase1_raw_S
+    module Flip          : Phase1_raw_S
+    module UD_slice      : Phase1_raw_S
+    module Flip_UD_slice : Phase1_raw_S
+
+    (* Phase 2 *)
+    module Edge_perm     : Phase2_raw_S
+    module Corner_perm   : Phase2_raw_S
+    module UD_slice_perm : Phase2_raw_S
   end
-
-(*
-  A coordinate has a base functionality described within T and included
-  within the coordinate. The user has the option to make a memoized version
-  of a coordinate or a symmetry coordinate. Both require some computation
-  to make and expose the exact same functionality under the signature T.
-*)
-module type Coordinate =
-  sig
-    module Fixed_move : Move.Fixed.S
-
-    module Raw : S with module Fixed_move = Fixed_move
-    module Make_memoized_coordinate (_ : Memo_params) : S with module Fixed_move = Fixed_move
-    (* Symmetry coordinates are about half as fast as memoized coordinates. But they're VERY fast still! *)
-    module Make_symmetry_coordinate (_ : Sym_memo_params) : Sym_S with module Fixed_move = Fixed_move
-  end
-
-module type Phase1Coordinate = Coordinate with module Fixed_move = Move.Fixed.G
-module type Phase2Coordinate = Coordinate with module Fixed_move = Move.Fixed.G1
-
-(* Phase 1 coordinates *)
-module Twist         : Phase1Coordinate
-module Flip          : Phase1Coordinate (* only exposed for testing *)
-module UD_slice      : Phase1Coordinate (* only exposed for testing *)
-module Flip_UD_slice : Phase1Coordinate
-
-(* Phase 2 coordinates *)
-module Edge_perm     : Phase2Coordinate
-module Corner_perm   : Phase2Coordinate
-module UD_slice_perm : Phase2Coordinate
