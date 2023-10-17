@@ -35,7 +35,7 @@ In all parts of the implementation, I had to think hard about how something is d
 
 **Summary**:
 
-Cubes are fully represented by coordinates and are reduced by symmetry classes. This means the foundation has been layed to begin working on the search part of the algorithm.
+Cubes are fully represented by coordinates and are reduced by symmetry classes. Computations on the coordinates are extremely fast. This means the foundation has been layed to begin working on the search part of the algorithm.
 
 ---
 
@@ -63,7 +63,7 @@ Cubes are fully represented by coordinates and are reduced by symmetry classes. 
 ---
 
 **TODO urgent**:
-* Finish `Cube` module and test it.
+* Finish `Cube` module to combine coordinates so user doesn't have to.
 
 ---
 
@@ -73,12 +73,10 @@ Cubes are fully represented by coordinates and are reduced by symmetry classes. 
   * Implement pruning tables.
     * Must consider how one cube can be represented by two symmetry coordinates.
   * Implement repeated search for worse phase1 result and better phase2 result.
-  * Figure out why move tables can't be saved during testing.
   * Create setup executable to calculate tables.
+    * This has been done poorly, and it is not user-friendly
   * Use config for table locations and setup state.
   * Reintroduce reflection symmetry with working orientations.
-  * Memoize symmetries on the coordinates before computing symmetry coordinate move tables
-    * Will this really increase efficiency? This table will be about as large as the symmetry coordinate move table anyways...
 * Code improvements:
   * Use quickcheck instead of my random selections.
   * See about passing a `Move.Fixed_move.S` around coordinates much less. It's excessive, but I haven't yet found a way around it, even using functors.
@@ -90,6 +88,7 @@ Cubes are fully represented by coordinates and are reduced by symmetry classes. 
 ---
 
 **Status updates**:
+* 17 Oct 2023 -- only the necessary coordinates are exposed, and they are all memoized and saved.
 * 13 Oct 2023 -- coordinates are limited to only their appropriate moves. All symmetry and memoized coordinates are tested and working (still without reflection). Only generators are memoized.
 * 12 Oct 2023 -- symmetry coordinates work but without reflection symmetry.
 * 08 Oct 2023 -- symmetries work without orientations. Symmetry coordinates failing moves.
