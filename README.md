@@ -78,8 +78,6 @@ Cubes are fully represented by coordinates and are reduced by symmetry classes. 
   * Create setup executable to calculate tables.
   * Use config for table locations and setup state.
   * Reintroduce reflection symmetry with working orientations.
-  * Memoize symmetries on the coordinates before computing symmetry coordinate move tables
-    * Will this really increase efficiency? This table will be about as large as the symmetry coordinate move table anyways...
 * Code improvements:
   * Use `Seq` instead of `List` to iterate over all coordinates, and make appropriate changes to `Lookup_table`.
   * Use quickcheck instead of my random selections.

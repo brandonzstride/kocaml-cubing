@@ -441,6 +441,10 @@ module Make_symmetry_coordinate
     (*
       This repeats some logic from Sym_IR. See the comment there for why
       this works.
+
+      This uses only symmetry multiplications (which are memoized) and
+      memoized moves on the representatives. i.e. this should be very fast
+      and does not depend on the raw coordinate's implementation.
     *)
     let perform_fixed_move (x : t) (m : Fixed_move.t) : t =
       let s1 = get_symmetry x in
