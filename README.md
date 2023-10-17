@@ -29,7 +29,7 @@ To take a peek into the code, I suggest starting with the following files: `cubi
 
 In all parts of the implementation, I had to think hard about how something is done. However, it was all in the effort of implementing exactly the algorithm Kociemba describes. There is only one "improvement" I make to the algorithm itself:
 * Instead of memoizing all fixed moves on a cube, I only memoize the generators for those moves. For the group G, this cuts down on move table size by a factor of three, but it slightly increases computation time (which appears to be near negligible).
-  * The same is done on symmetry coordinates because I don't use the reflection symmetry. Without the reflection symmetry, all move generators are other generators when acted on my a symmetry, so it is safe
+  * The same is done on symmetry coordinates because I don't use the reflection symmetry. Without the reflection symmetry, all move generators are other generators when acted on by a symmetry, so it is safe
   to only memoize the generators.
 
 ## Status
