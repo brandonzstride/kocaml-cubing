@@ -224,6 +224,7 @@ let test_coord_move_sequence n_trials n_moves move_list_generator (module M : Co
   Fn.apply_n_times ~n:n_trials test_module ()
 
 (*
+  This comment is out of date for current scale of tests.
   Use move sequences of 40 moves, 100 times
 
   If there is one move that fails on a coordinate, then (roughly, because it
@@ -231,8 +232,10 @@ let test_coord_move_sequence n_trials n_moves move_list_generator (module M : Co
   chance of that move not getting hit. I'll take my chances and assume that this
   test is sufficient.     
 *)
-let test_coord_move_sequence_phase1 = test_coord_move_sequence 100 40 Move.Fixed.G.random_list
-let test_coord_move_sequence_phase2 = test_coord_move_sequence 100 40 (fun n -> Move.Fixed.G1.random_list n |> List.map ~f:Move.Fixed.G1.to_super_t)
+let n_trials = 500
+let n_moves = 40
+let test_coord_move_sequence_phase1 = test_coord_move_sequence n_trials n_moves Move.Fixed.G.random_list
+let test_coord_move_sequence_phase2 = test_coord_move_sequence n_trials n_moves (fun n -> Move.Fixed.G1.random_list n |> List.map ~f:Move.Fixed.G1.to_super_t)
 
 let test_raw_phase1_coord_move_sequence =
   "raw phase1 coord move sequences" >::: [
