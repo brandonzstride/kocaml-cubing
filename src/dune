@@ -63,3 +63,10 @@
     lookup_table)
   (preprocess
     (pps ppx_jane)))
+
+(executable
+ (name setup)
+ (modules setup)
+ (libraries
+   core
+   coordinate))

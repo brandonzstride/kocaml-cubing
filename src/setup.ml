@@ -19,15 +19,29 @@
     here until I make a solver executable.
 *)
 
+(*
+  NOTICE
+    This is just some rough code to precompute the coordinates without
+    any official config. I am doing this to speed up tests.
+
+    Use command
+    ```
+    dune exec -- src/setup.exe
+    ```
+    It takes less than four minutes for all the coordinates on my machine. Flip_UD_slice
+    takes about three and half of those.
+*)
 module P : Coordinate.Params =
   struct
     let status = `Compute_and_save_at_directory "./src/coordinates/"
   end
 
+let () = 
 (* Compute and save all coordinates *)
-module Twist = Coordinate.Twist (P)
-module Flip_UD_slice = Coordinate.Flip_UD_slice (P)
+  let module Twist = Coordinate.Twist (P) in
+  let module Flip_UD_slice = Coordinate.Flip_UD_slice (P) in
 
-module Edge_perm = Coordinate.Edge_perm  (P)
-module Corner_perm = Coordinate.Corner_perm (P)
-module UD_slice_perm = Coordinate.UD_slice_perm (P)
+  let module Edge_perm = Coordinate.Edge_perm (P) in
+  let module Corner_perm = Coordinate.Corner_perm (P) in
+  let module UD_slice_perm = Coordinate.UD_slice_perm (P) in
+  print_endline "done";

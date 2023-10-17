@@ -254,8 +254,10 @@ let test_raw_phase2_coord_move_sequence =
 
 module P : Coordinate.Params =
   struct
-    let status = `Compute (* do not save *)
-    (* let status = `Compute_and_save_at_directory "./coordinates/" *) (* this fails... something about temp_file *)
+    (* let status = `Compute *) (* do not save *)
+    (* back out of test, default, _build, then into src ... *)
+    (* It takes about half a second to load all of the coordinates into memory on my machine *)
+    let status = `Is_saved_at_directory "../../../src/coordinates/" (* requiries that `dune exec -- src/setupml` has been run *)
   end
 
 module Twist = Coordinate.Twist (P)
@@ -383,14 +385,14 @@ let test_sym_moves_on_perm =
   The associated test is `test_sym_phase1_coord_move_sequence`, and as such
   it is commented out.
 *)
-(* module Flip_UD_slice = Coordinate.Flip_UD_slice (P) *)
+module Flip_UD_slice = Coordinate.Flip_UD_slice (P)
 (* Note that this takes 200 seconds in utop but less than 20 seconds in tests *)
 module Corner_perm = Coordinate.Corner_perm (P)
 
-(* let test_sym_phase1_coord_move_sequence =
+let test_sym_phase1_coord_move_sequence =
   "sym phase1 coord move sequences" >::: [
     "flip ud slice" >:: test_coord_move_sequence_phase1 (module Flip_UD_slice)
-  ] *)
+  ]
 
 let test_sym_phase2_coord_move_sequence =
   "sym phase2 coord move sequences" >::: [
@@ -399,7 +401,7 @@ let test_sym_phase2_coord_move_sequence =
 
 let cube_tests = "cube tests" >::: [
   test_coord_of_perm;
-  (* The next three tests might be commented out because they are exhaustive and slow *)
+  (* The next three tests might be commented out because they are exhaustive and slow. Total, they take over 10 seconds *)
   test_counts;
   test_ranks;
   test_inverses;
@@ -410,7 +412,7 @@ let cube_tests = "cube tests" >::: [
   test_memoized_phase2_coord_move_sequence;
   (* test_move_symmetries; *)
   test_sym_moves_on_perm;
-  (* test_sym_phase1_coord_move_sequence; *)
+  test_sym_phase1_coord_move_sequence;
   test_sym_phase2_coord_move_sequence;
 ]
 
@@ -419,7 +421,4 @@ let series = "series" >::: [
 ]
 
 let () =
-  let t0 = Caml_unix.gettimeofday () in
-  test_coord_move_sequence 10000 40 (fun n -> Move.Fixed.G1.random_list n |> List.map ~f:Move.Fixed.G1.to_super_t) (module Corner_perm) ();
-  Printf.printf "Ran 10^4 trials of 40 moves on corner symmetry coord in %fs\n" (Caml_unix.gettimeofday () -. t0);
   run_test_tt_main series

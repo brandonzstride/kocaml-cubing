@@ -109,9 +109,18 @@ module Load_from_params (P : Params) :
         (Caml_unix.gettimeofday () -. t0);
       result
 
+    let load_from_file dirname ~filename ~from_file =
+      let t0 = Caml_unix.gettimeofday () in
+      let result = from_file (dirname ^ filename) in
+      Printf.printf "Loaded result %s%s in time %fs\n" 
+        dirname
+        filename
+        (Caml_unix.gettimeofday () -. t0);
+      result
+
     let load ~filename ~on_compute ~to_file ~from_file =
       match P.status with
-      | `Is_saved_at_directory dirname -> from_file (dirname ^ filename)
+      | `Is_saved_at_directory dirname -> load_from_file dirname ~filename ~from_file
       | `Compute_and_save_at_directory dirname ->
         let x = compute dirname ~filename ~on_compute in
         to_file x (dirname ^ filename);
@@ -423,7 +432,8 @@ module Make_symmetry_coordinate
         to other generators under symmetries, so it's safe to only memoize generators.
         It is not significantly slower to perform moves based on my tests. At worst,
         I suppose it might be half as fast if lookup times don't improve because the
-        average power of a move is two.
+        average power of a move is two. The tests show the time is negligible, but the
+        tests include the time to generate all the moves, as well as other infrastructure.
     *)
     module Move_table = Lookup_table.Two_dim.Make (I) (Fixed_move.Generator) (I)
 
