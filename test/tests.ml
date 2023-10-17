@@ -375,6 +375,8 @@ let test_sym_moves_on_perm =
   To compute and memoize the entire symmetry coordinate...
   * There were 127166 symmetry classes, all found in 13 seconds
   * The move table was of size 2,288,988, computed in 462 seconds
+    * UPDATE: when only generators are memoized, this has 1/3 the size,
+      and it takes only 173 seconds
 
   The test passed, so it will not be run again until there is a major change.
 
