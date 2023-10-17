@@ -129,6 +129,7 @@ module Load_from_params (P : Params) :
   these lookup tables are unfeasable.
 *)
 module Make_memoized_coordinate
+    (Name : sig val name : string end)
     (Raw : S)
     (P : Params)
     : S with module Fixed_move = Raw.Fixed_move =
@@ -160,7 +161,7 @@ module Make_memoized_coordinate
 
     let move_table =
       Loader.load
-        ~filename:"move_table.sexp"
+        ~filename:(Name.name ^ "/" ^ "move_table.sexp")
         ~on_compute:(fun () ->
             Move_table.create (all ()) Fixed_move.Generator.all ~f:(
               fun x gen ->
@@ -172,7 +173,7 @@ module Make_memoized_coordinate
 
     let sym_table =
       Loader.load
-        ~filename:"symmetry_table.sexp"
+        ~filename:(Name.name ^ "/" ^ "symmetry_table.sexp")
         ~on_compute:(fun () ->
             Symmetry_table.create (all ()) Symmetry.all ~f:(
               fun x s ->
@@ -316,6 +317,7 @@ module Make_sym_IR (Raw : S) : Sym_IR with module Raw = Raw =
   This will be expensive to compute because it needs to call Sym_base.all.
 *)
 module Make_symmetry_coordinate
+    (Name : sig val name : string end)
     (S : Sym_IR)
     (P : Params)
     : Sym_S with module Fixed_move = S.Raw.Fixed_move =
@@ -337,7 +339,7 @@ module Make_symmetry_coordinate
     *)
     let class_to_rep_table =
       Loader.load
-        ~filename:"class_to_rep_table.sexp"
+        ~filename:(Name.name ^ "/" ^ "class_to_rep_table.sexp")
         ~on_compute:(fun () ->
             S.all ()
             |> List.map ~f:S.get_rep
@@ -368,7 +370,7 @@ module Make_symmetry_coordinate
     *)
     let rep_to_class_map =
       Loader.load
-       ~filename:"rep_to_class_map.sexp"
+       ~filename:(Name.name ^ "/" ^ "rep_to_class_map.sexp")
        ~on_compute:(fun () ->
           let f = Raw_table.lookup class_to_rep_table in
           let rec go i map =
@@ -422,7 +424,7 @@ module Make_symmetry_coordinate
        if converted to a fixed move  *)
     let move_table =
       Loader.load
-        ~filename:"move_table.sexp"
+        ~filename:(Name.name ^ "/" ^ "move_table.sexp")
         ~on_compute:(fun () ->
             Move_table.create (all ()) Fixed_move.all ~f:(
               fun x m ->
@@ -795,7 +797,7 @@ module Flip_UD_slice_sym_IR = Make_sym_IR (Flip_UD_slice_raw)
   All phase 2 coordinates describe permutations. Therefore, they can
   all use the same basic behavior. I define a functor to help with this.
 
-  The Perm_coord module is a functor for a permutation coordinate on
+  The Make_perm_coord_raw module is a functor for a permutation coordinate on
   some cubies.
   
   A permutation coordinate on n cubies is an integer in 0..(n!-1) because
@@ -920,13 +922,13 @@ module UD_slice_perm_raw = Make_perm_coord_raw (
 *)
 
 (* Phase 1 *)
-module Twist         : Phase1_S     = Make_memoized_coordinate (Twist_raw)
-module Flip_UD_slice : Phase1_sym_S = Make_symmetry_coordinate (Flip_UD_slice_sym_IR)
+module Twist         : Phase1_S     = Make_memoized_coordinate (struct let name = "twist" end) (Twist_raw)
+module Flip_UD_slice : Phase1_sym_S = Make_symmetry_coordinate (struct let name = "flip_ud_slice" end) (Flip_UD_slice_sym_IR)
 
 (* Phase 2 *)
-module Edge_perm     : Phase2_S     = Make_memoized_coordinate (Edge_perm_raw)
-module Corner_perm   : Phase2_sym_S = Make_symmetry_coordinate (Corner_perm_sym_IR)
-module UD_slice_perm : Phase2_S     = Make_memoized_coordinate (UD_slice_perm_raw)
+module Edge_perm     : Phase2_S     = Make_memoized_coordinate (struct let name = "edge_perm" end) (Edge_perm_raw)
+module Corner_perm   : Phase2_sym_S = Make_symmetry_coordinate (struct let name = "corner_perm" end) (Corner_perm_sym_IR)
+module UD_slice_perm : Phase2_S     = Make_memoized_coordinate (struct let name = "ud_slice_perm" end) (UD_slice_perm_raw)
 
 
 module Exposed_for_testing =

@@ -252,6 +252,7 @@ let test_raw_phase2_coord_move_sequence =
 module P : Coordinate.Params =
   struct
     let status = `Compute (* do not save *)
+    (* let status = `Compute_and_save_at_directory "./coordinates/" *) (* this fails... something about temp_file *)
   end
 
 module Twist = Coordinate.Twist (P)
