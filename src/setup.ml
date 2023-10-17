@@ -18,3 +18,16 @@
     memory before accepting a cube as input. I'm placing this note
     here until I make a solver executable.
 *)
+
+module P : Coordinate.Params =
+  struct
+    let status = `Compute_and_save_at_directory "./src/coordinates/"
+  end
+
+(* Compute and save all coordinates *)
+module Twist = Coordinate.Twist (P)
+module Flip_UD_slice = Coordinate.Flip_UD_slice (P)
+
+module Edge_perm = Coordinate.Edge_perm  (P)
+module Corner_perm = Coordinate.Corner_perm (P)
+module UD_slice_perm = Coordinate.UD_slice_perm (P)

@@ -417,4 +417,7 @@ let series = "series" >::: [
 ]
 
 let () =
+  let t0 = Caml_unix.gettimeofday () in
+  test_coord_move_sequence 10000 40 (fun n -> Move.Fixed.G1.random_list n |> List.map ~f:Move.Fixed.G1.to_super_t) (module Corner_perm) ();
+  Printf.printf "Ran 10^4 trials of 40 moves on corner symmetry coord in %fs\n" (Caml_unix.gettimeofday () -. t0);
   run_test_tt_main series
