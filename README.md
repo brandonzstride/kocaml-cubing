@@ -82,8 +82,6 @@ Cubes are fully represented by coordinates and are reduced by symmetry classes. 
     * Will this really increase efficiency? This table will be about as large as the symmetry coordinate move table anyways...
 * Code improvements:
   * Use `Seq` instead of `List` to iterate over all coordinates, and make appropriate changes to `Lookup_table`.
-  * Have memoization params use only a folder path given as package in polymorphic variant constructor.
-  * Only expose necessary coordinates--I have decided to forego letting the user pick their style of coordinate because it will almost always be too expensive.
   * Use quickcheck instead of my random selections.
   * See about passing a `Move.Fixed_move.S` around coordinates much less. It's excessive, but I haven't yet found a way around it, even using functors.
 * User experience:
