@@ -26,7 +26,7 @@
     cubes convert to and from ranks.
 *)
 
-module type S :
+module type S =
   sig
     type t
     val is_goal_state : t -> bool
