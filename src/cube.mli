@@ -25,6 +25,12 @@
 
 module type S =
   sig
+    (* Yes, this jargon again... See Coordinate *)
+    module Fixed_move :
+      sig
+        type t
+        val of_super_t : Move.Fixed.Super.t -> t
+      end
     type t
     (* Size of the cube space *)
     val n : int
@@ -37,6 +43,8 @@ module type S =
     val of_perm : Perm.t -> (t, string) result 
     (* gets rank as it's expected to be in the pruning table *)
     val to_rank : t -> int
+    (* performs a single move on the cube *)
+    val perform_fixed_move : t -> Fixed_move.t -> t
 
     module Exposed_for_testing :
       sig
@@ -45,7 +53,7 @@ module type S =
   end
 
 (* Supports Twist and Flip_UD_slice coordinates *)
-module Phase1 : S  
+module Phase1 : S with type Fixed_move.t = Move.Fixed.G.t
 
 (* Supports Edge_perm, Corner_perm, and UD_slice_perm coordinates *)
-module Phase2 : S
+module Phase2 : S with type Fixed_move.t = Move.Fixed.G1.t

@@ -400,6 +400,8 @@ module Make_symmetry_coordinate
     (* let is_rep x = x mod Symmetry.n = 0 *)
     let get_rep x = x |> to_rank |> of_rank
 
+    let get_class_index x = Map.find_exn rep_to_class_map (S.get_rep x)
+
     let get_rep_raw_coord (x : t) : S.Raw.t =
       Raw_table.lookup class_to_rep_table (to_rank x)
 
@@ -408,9 +410,8 @@ module Make_symmetry_coordinate
 
     (* Gets the t from the intermediate representation--call that the "base" of this module *)
     let of_base (x : S.t) : t =
-      let class_index = Map.find_exn rep_to_class_map (S.get_rep x) in
       let sym_rank = Symmetry.to_rank (S.get_sym x) in
-      class_index * Symmetry.n + sym_rank
+      Symmetry.n * get_class_index x + sym_rank
 
     (*
       Unfortunately, it's not enough to memoize the result of a move generator

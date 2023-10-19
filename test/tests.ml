@@ -399,6 +399,87 @@ let test_sym_phase2_coord_move_sequence =
     "corner perm" >:: test_coord_move_sequence_phase2 (module Corner_perm);
   ]
 
+(*
+  ----------
+  TEST CUBES   
+  ----------
+
+  I need to test the Phase1 and Phase2 full representations of the cubes.
+  There are a few things I'm going for:
+  * The solved state is correctly recognized as the goal state
+  * I can reach the goal state from some easily solved preset cubes (contained within the next item)
+  * Moves should work as if they're on the physical permutation
+  * Symmetric cubes should have the same rank
+*)
+
+let test_cube_move_sequence n_trials n_moves move_list_generator (module M : Cube.S) _ =
+  let test_module _ =
+    let p = (* random starting permutation *)
+      move_list_generator n_moves
+      |> Perm.perform_fixed_move_list Perm.identity
+    in
+    let move_list = move_list_generator n_moves in (* moves to apply to permutation *)
+    let p' = Perm.perform_fixed_move_list p move_list in (* resulting perm from the moves *actually applied to the cube* *)
+    let sanitize x = (* sanitize a cube by forcing it to use same symmetry as of_perm *)
+      x
+      |> M.Exposed_for_testing.to_perm
+      |> M.of_perm
+      |> Result.ok_or_failwith
+      |> M.to_rank
+    in
+    let x' = (* resulting coord of the moves *only applied to the cube* *)
+      List.fold
+        move_list
+        ~init:(
+          p
+          |> M.of_perm
+          |> Result.ok_or_failwith
+        )
+        ~f:(fun x m ->
+          m
+          |> M.Fixed_move.of_super_t
+          |> M.perform_fixed_move x
+        ) in 
+    assert_equal (M.of_perm p' |> Result.ok_or_failwith |> M.to_rank) (sanitize x') (* cannot compare perms because some cubies are not relevant to coord *)
+  in
+  Fn.apply_n_times ~n:n_trials test_module ()
+
+let n_trials = 500
+let n_moves = 40
+let test_cube_move_sequence_phase1 = test_cube_move_sequence n_trials n_moves Move.Fixed.G.random_list
+let test_cube_move_sequence_phase2 = test_cube_move_sequence n_trials n_moves (fun n -> Move.Fixed.G1.random_list n |> List.map ~f:Move.Fixed.G1.to_super_t)
+
+(*
+  These sometimes pass, sometimes fail without "sanitation".
+  
+  Phase1 seems to pass much more often. I can run thousands of trials with it passing.
+  * 10**4 trials and 40 moves gives 99.81% success rate
+
+  I seem to be only able to run tens of trials in Phase2 and still have it pass.
+  * 10**4 trials and 40 moves gives 97.19% success rate
+
+  This is because sometimes one cube can be represented by multiple
+  symmetry coordinates, which would yield different ranks.
+  * This is relevant when getting the symmetry coordinate *from* a perm because it uses
+    the smallest symmetry that converts to the representative
+  * A symmetry coordinate during regular usage does not always yield the smallest symmetry
+    that converts to the representative.
+
+  So I sanitize the cube by forcing it to a permutation and then back from a permutation.
+  This always gives the "smallest symmetry". When I use 10**4 trials now, there should be
+  about a 5 in a billion chance it doesn't throw an error if these actually aren't working.
+  I don't run this regularly, but I have run it before, and it didn't fail.
+  ( 0.9981 ^ 10000 ~=~ 5 * 10^-9)
+
+  This is just a patch on the issue that I don't handle cubes that are represented
+  by more than one symmetry coordinate.
+*)
+let test_cube_move_sequence =
+  "cube move sequences" >::: [
+    "phase1" >:: test_cube_move_sequence_phase1 (module Cube.Phase1);
+    "phase2" >:: test_cube_move_sequence_phase2 (module Cube.Phase2);
+  ]
+
 let cube_tests = "cube tests" >::: [
   test_coord_of_perm;
   (* The next three tests might be commented out because they are exhaustive and slow. Total, they take over 10 seconds *)
@@ -414,6 +495,7 @@ let cube_tests = "cube tests" >::: [
   test_sym_moves_on_perm;
   test_sym_phase1_coord_move_sequence;
   test_sym_phase2_coord_move_sequence;
+  test_cube_move_sequence;
 ]
 
 let series = "series" >::: [

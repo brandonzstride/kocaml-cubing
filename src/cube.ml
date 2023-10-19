@@ -2,11 +2,17 @@ open Core
 
 module type S =
   sig
+    module Fixed_move :
+      sig
+        type t
+        val of_super_t : Move.Fixed.Super.t -> t
+      end
     type t
     val n : int
     val is_goal_state : t -> bool
     val of_perm : Perm.t -> (t, string) result 
     val to_rank : t -> int
+    val perform_fixed_move : t -> Fixed_move.t -> t
     module Exposed_for_testing :
       sig
         val to_perm : t -> Perm.t
@@ -14,8 +20,13 @@ module type S =
   end
 
 (* Make a combination of two coordinates, one raw and one sym *)
-module Make (Raw : Coordinate.S) (Sym : Coordinate.Sym_S) : S =
+module Make
+  (Raw : Coordinate.S)
+  (Sym : Coordinate.Sym_S with type Fixed_move.t = Raw.Fixed_move.t)
+  : S with type Fixed_move.t = Raw.Fixed_move.t =
   struct
+    module Fixed_move = Raw.Fixed_move
+
     type t =
       { raw : Raw.t
       ; sym : Sym.t }
@@ -47,6 +58,9 @@ module Make (Raw : Coordinate.S) (Sym : Coordinate.Sym_S) : S =
           let { raw ; sym } = convert_to_rep x in
           Sym.n * Raw.to_rank raw + Sym.to_rank sym
 
+    let perform_fixed_move { raw ; sym } (m : Fixed_move.t) : t =
+      { raw = Raw.perform_fixed_move raw m ; sym = Sym.perform_fixed_move sym m }
+
     module Exposed_for_testing =
       struct
         (* assume the coordinates don't conflict *)
@@ -55,6 +69,7 @@ module Make (Raw : Coordinate.S) (Sym : Coordinate.Sym_S) : S =
       end
   end
 
+(* This is really slow in utop because it loads everything on startup *)
 module C = Coordinate.Using_config ()
 
 (*
@@ -68,6 +83,8 @@ module Phase2 =
     (* Only two of the coordinates are visible to the user, but 
        Phase2 still needs to consider UD_slice_perm to be solved *)
     module Visible = Make (C.Edge_perm) (C.Corner_perm)
+
+    module Fixed_move = Visible.Fixed_move
 
     module UD = C.UD_slice_perm
 
@@ -92,6 +109,9 @@ module Phase2 =
     (* UD does not contribute to rank because it makes the scale too large *)
     let to_rank x =
       Visible.to_rank x.visible
+
+    let perform_fixed_move { visible ; ud } (m : Fixed_move.t) : t =
+      { visible = Visible.perform_fixed_move visible m ; ud = UD.perform_fixed_move ud m }
 
     module Exposed_for_testing =
       struct
