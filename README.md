@@ -53,6 +53,7 @@ Cubes are fully represented by coordinates and are reduced by symmetry classes. 
   * Only move generators are memoized to save space.
 * Symmetry coordinates work for move sequences.
   * The equivalence class always comes out right, but the code may struggle when one cube can be represented by two symmetry coordinates.
+* Cubes are represented as a combination of coordinates and can be acted on by moves.
 
 ---
 
@@ -65,7 +66,8 @@ Cubes are fully represented by coordinates and are reduced by symmetry classes. 
 
 **TODO urgent**:
 * All "Code improvement" TODOs are the most urgent because I value my code quality, and this project has no deadline.
-* Finish `Cube` module and test it.
+* Handle case when the same raw coordinate represented by two sym coordinates
+  * Consider letting fixed moves return a list of resulting coordinates -- this will likely be very slow, however...
 
 ---
 
@@ -81,8 +83,9 @@ Cubes are fully represented by coordinates and are reduced by symmetry classes. 
   * Reintroduce reflection symmetry with working orientations.
 * Code improvements:
   * Use `Seq` instead of `List` to iterate over all coordinates, and make appropriate changes to `Lookup_table`.
-  * Use quickcheck instead of my random selections.
-  * See about passing a `Move.Fixed_move.S` around coordinates much less. It's excessive, but I haven't yet found a way around it, even using functors.
+  * Use `quickcheck` instead of my random selections.
+  * See about passing a `Move.Fixed_move.S` around coordinates much less. It's excessive, but I haven't yet found a way around it.
+  * Consider `drom` for project structure?
 * User experience:
   * Front end?
   * opam file and "how to run" instructions.
