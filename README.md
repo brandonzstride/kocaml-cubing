@@ -58,7 +58,7 @@ Cubes are fully represented by coordinates and are reduced by symmetry classes. 
 ---
 
 **Untested functionality**:
-* The following tests are commented out because they are not adjusted to work with my recent refactor, **but other functionality depends on them and passes.**
+* The following tests are commented out because they are not adjusted to work with my recent refactor, **but other functionality greatly depends on them and passes.**
   * Symmetries on moves.
   * Move sequences on a permutation.
 
@@ -66,8 +66,8 @@ Cubes are fully represented by coordinates and are reduced by symmetry classes. 
 
 **TODO urgent**:
 * All "Code improvement" TODOs are the most urgent because I value my code quality, and this project has no deadline.
-* Handle case when the same raw coordinate represented by two sym coordinates
-  * Consider letting fixed moves return a list of resulting coordinates -- this will likely be very slow, however...
+* Handle case when one raw coordinate is represented by more than one sym coordinate at the same time.
+  * Upon doing move when creating pruning tables, must search the equivalence class for the same raw coordinate.
 
 ---
 
