@@ -960,6 +960,34 @@ module Edge_perm     : Phase2_S     = Make_memoized_coordinate (struct let name 
 module Corner_perm   : Phase2_sym_S = Make_symmetry_coordinate (struct let name = "corner_perm" end) (Corner_perm_sym_IR)
 module UD_slice_perm : Phase2_S     = Make_memoized_coordinate (struct let name = "ud_slice_perm" end) (UD_slice_perm_raw)
 
+(*
+  --------------------------
+  PRE-PARAMIFIED COORDINATES   
+  --------------------------
+
+  That's probably not a word--"pre-paramified"--but nevertheless these are
+  the coordinates that the user can just grab and go. There's no promise that
+  the `Using_config` works at the moment.
+*)
+
+module Using_config () =
+  struct
+    module P : Params =
+      struct
+        (* Hard code the params for now. Eventually want to read from config files *)
+        let status = `Is_saved_at_directory "/mnt/c/Users/brand/Documents/kocaml-cubing/src/coordinates/"
+      end
+
+    (* Phase 1 *)
+    module Twist         = Twist (P)
+    module Flip_UD_slice = Flip_UD_slice (P)
+    
+    (* Phase 2 *)
+    module Edge_perm     = Edge_perm (P)
+    module Corner_perm   = Corner_perm (P)
+    module UD_slice_perm = UD_slice_perm (P)
+  end
+
 
 module Exposed_for_testing =
   struct

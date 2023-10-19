@@ -64,6 +64,15 @@
   (preprocess
     (pps ppx_jane)))
 
+(library
+  (name cube)
+  (modules cube)
+  (libraries
+    core
+    perm
+    coordinate
+    move))
+
 (executable
  (name setup)
  (modules setup)

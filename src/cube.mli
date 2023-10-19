@@ -21,25 +21,31 @@
 
   Other comments:
     Might support functionality without memoization to compare speed.
-
-    Currently shares some responsibility with the pruning table because these
-    cubes convert to and from ranks.
 *)
 
 module type S =
   sig
     type t
+    (* Size of the cube space *)
+    val n : int
+    (*
+      Goal state phase 1 : is in G1 subgroup
+      Goal state phase 2 : is solved cube
+    *)
     val is_goal_state : t -> bool
-    (* discards information about some parts of the cube *)
+    (* discards information about some parts of the cube to partially represent *)
     val of_perm : Perm.t -> (t, string) result 
-    val to_perm : t -> Perm.t (* for testing purposes *)
     (* gets rank as it's expected to be in the pruning table *)
-    val of_rank : int -> t option
     val to_rank : t -> int
+
+    module Exposed_for_testing :
+      sig
+        val to_perm : t -> Perm.t
+      end
   end
 
 (* Supports Twist and Flip_UD_slice coordinates *)
 module Phase1 : S  
 
 (* Supports Edge_perm, Corner_perm, and UD_slice_perm coordinates *)
-(* module Phase2 : S *)
+module Phase2 : S

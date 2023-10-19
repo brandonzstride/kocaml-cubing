@@ -136,6 +136,19 @@ module Edge_perm     : Phase2_S
 module UD_slice_perm : Phase2_S
 module Corner_perm   : Phase2_sym_S
 
+module Using_config () :
+  sig
+    (* Phase 1 *)
+    module Twist         : S with module Fixed_move = Move.Fixed.G
+    module Flip_UD_slice : Sym_S with module Fixed_move = Move.Fixed.G
+
+    (* Phase 2 *)
+    module Edge_perm     : S with module Fixed_move = Move.Fixed.G1
+    module UD_slice_perm : S with module Fixed_move = Move.Fixed.G1
+    module Corner_perm   : Sym_S with module Fixed_move = Move.Fixed.G1
+
+  end
+
 (* Raw coordinates that are only exposed for testing and not to be used during solving *)
 module Exposed_for_testing :
   sig
