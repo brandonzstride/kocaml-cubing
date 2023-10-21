@@ -7,7 +7,7 @@ This project is a work in progress. There is meaningful functionality, but pleas
 
 **This project is entirely my interpretation of Herbert Kociemba's explanation on [kociemba.org](http://kociemba.org/cube.htm)**. I do not refer to any code that implements the Two-Phase algorithm. I give credit for the ideas behind the algorithm to Herbert Kociemba. Implementation details are all my own, and I note my algorithmic additions in this README.
 
-Written in `OCaml 5.0.0`. Depends on `Core`, `ppx_jane`, and `OUnit2`.
+Written in `OCaml 5.0.0`. Depends on `Core`, `ppx_jane`, `OUnit2`, and `Psq` (priority search queue).
 
 This project adheres to functional standards and uses no mutation **except when contained under the hood of a module and can appear to be completely functional**. I use `Core` for stronger types than `Base` or `Batteries`. Exceptions are used for logical impossibilities and are only thrown if there is a mistake in the code logic; they are never intentionally caught as an implementation choice.
 
