@@ -201,7 +201,10 @@ let on_perm x =
   |> S.of_rank
   |> S.on_perm
 
-let random () = Random.int n
+module Exposed_for_testing =
+  struct
+    let random () = Random.int n
+  end
 
 (*
   -------------------

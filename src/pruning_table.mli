@@ -15,7 +15,6 @@
 
 
 (*
-
   Pruning tables are made by starting from goal state and applying all moves.
   Never overwrite values in the table unless they are the initial value (inf).
 
@@ -28,7 +27,7 @@ module Phase1 :
   sig
 
   (*
-    Needs   
+    Needs implementation.
   *)
 
   end

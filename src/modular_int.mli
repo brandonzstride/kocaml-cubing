@@ -17,16 +17,34 @@
 
 module type S = sig
   type t [@@deriving sexp]
-  val ( + ) : t -> t -> t
-  val ( * ) : t -> t -> t
-  val inverse : t -> t (* additive inverse *)
-  val equal : t -> t -> bool
-  val compare : t -> t -> int
-  val of_int : int -> t
-  val to_int : t -> int
   val n : int
-  val all : t list
+  (** [n] is the size of the group. *)
+
   val zero : t
+  (** [zero] is the 0 element of the group; the additive identity. *)
+
+  val ( + ) : t -> t -> t
+  (** [a + b] is integer addition of [a] and [b], mod by [n]. *)
+
+  val ( * ) : t -> t -> t
+  (** [a * b] is integer multiplication of [a] and [b], mod by [n]. *)
+
+  val inverse : t -> t
+  (** [inverse x] is the additive inverse of the modular int [x]. *)
+
+  val equal : t -> t -> bool
+  (** [equal a b] is true if and only if [a] and [b] are the same mod [n]. *)
+
+  val of_int : int -> t
+  (** [of_int x] gets the [x] mod [n]. *)
+
+  val to_int : t -> int
+  (** [to_int x] casts the modular int [x] to an integer in Z. *)
+
+  val all : t list
+  (** [all] is a sorted list of all elements in the group. *)
+
+  val compare : t -> t -> int
 end
 
 module Z2 : S

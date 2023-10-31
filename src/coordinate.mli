@@ -74,30 +74,43 @@
 *)
 module type S =
   sig
-    (* Stores the cube moves that this coordinate supports *)
     module Fixed_move : Move.Fixed.S
-    (* The type is hidden, but not really because sexp gives insight *)
+    (** [Fixed_move] stores the cube moves that this coordinate supports *)
+
     type t [@@deriving sexp, compare]
-    (* The coordinate of rank zero *)
+    (** [t] is hidden, but sexp gives insight... *)
+
     val zero : t
-    (* `n` is the number of possible coordinates *)
+    (** [zero] is the coordinate of rank zero. It is always the solved state. *)
+
     val n : int
-    (* Get the next largest coordinate, or None if there is no next largest. *)
+    (** [n] is the number of visible coordinates to the user. *)
+
     val next : t -> t option
-    (* Get the integer rank of this coordinate *)
+    (** [next x] gives the next largest coordinate after [x], or [None] if there is no next largest. *)
+
     val to_rank : t -> int
-    (* Gets the coordinate from the integer rank *)
+    (** [to_rank x] sends [x] to a unique integer rank, which is invertible with [of_rank]. *)
+
     val of_rank : int -> t
-    (* Finds a representative permutation for the coordinate *)
+    (** [of_rank i] gets the unique coordinate with rank [i], which is invertible with [to_rank]. *)
+
     val to_perm : t -> Perm.t
-    (* Calculates the coordinate for a given permuation *)
+    (** [to_perm x] finds a representative permutation for the coordinate [x]. *)
+
     val of_perm : Perm.t -> t
-    (* Gets the resulting coordinate after applying a move *)
+    (** [of_perm p] calculates the coordinate for the given permutation [p]. *)
+
     val perform_fixed_move : t -> Fixed_move.t -> t
-    (* Gets the resulting coordinate after applying a symmetry like S * P * S^-1 *)
+    (** [perform_fixed_move x m] gets the resulting coordinate after applying the fixed move [m]
+        to the permutation represented by coordinate [x]. *)
+
     val perform_symmetry : t -> Symmetry.t -> t
-    (* Gets a list of all coordinates. USE THIS SPARINGLY *)
+    (** [perform_symmetry x s] gets the resulting coordinate after applying the symmetry [s] to
+        the permutation represented by coordinate [x]. *)
+
     val all : unit -> t list
+    (** [all ()] is a list of all coordinates. USE THIS SPARINGLY because it can be slow. *)
   end
 
 (*
@@ -106,10 +119,18 @@ module type S =
 module type Sym_S = 
   sig
     include S
-    (* Get the symmetry that converts it to the representative of the symmetry class *)
+    (** Sym_S has everything that S has, and more. *)
+
     val get_symmetry : t -> Symmetry.t
-    (* Gets cubes that are identical but have different symmetry coordinates *)
+    (** [get_symmetry x] gets the symmetry that converts the coordinate [x] to the
+        representative of its equivalence class. *)
+
     val get_identical_cubes : t -> t list
+    (** [get_identical_cubes x] gets a list of all coordinates (including [x]) that
+        represent an identical underlying permutation but have different symmetry coordinates.
+        
+        E.g. the solved cube is identical to itself under all symmetries, so there is a unique
+        symmetry coordinate for each symmetry of the solved cube, even though they are all the same. *)
   end
 
 module type Params =

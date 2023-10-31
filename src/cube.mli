@@ -31,22 +31,41 @@ module type S =
         type t
         val of_super_t : Move.Fixed.Super.t -> t
       end
+
     type t
-    (* Size of the cube space *)
+    (** Coordinates are used to represent a cube in some phase of the solving algorithm. *)
+
     val n : int
-    (*
-      Goal state phase 1 : is in G1 subgroup
-      Goal state phase 2 : is solved cube
-    *)
+    (** [n] is the size of the cube space. *)
+
     val is_goal_state : t -> bool
+    (** [is_goal_state cube] is true if and only if the cube is in the goal state of the
+        corresponding phase of the algorithm.
+    
+        Phase 1 goal state : the cube is in the G1 subgroup
+        Phase 2 goal state : the cube is solved *)
+
     (* discards information about some parts of the cube to partially represent *)
     val of_perm : Perm.t -> (t, string) result 
+    (** [of_perm p] gets a [t] from the permutation if the permutation is appropriately
+        in the solved state of the previous algorithm phase.
+        
+        This discards information about some parts of the cube, and it partially represents
+        the cube only to sufficiently solve the corresponding phase of the algorithm. *)
+
     (* gets rank as it's expected to be in the pruning table *)
     val to_rank : t -> int
+    (** [to_rank cube] sends the cube to a unique integer between 0 and [n] (see above).
+        All cubes of a symmetry class have the same rank. *)
+
     (* performs a single move on the cube *)
     val perform_fixed_move : t -> Fixed_move.t -> t
-    (* gets any cubes that are identical but have a different rank *)
+    (** [perform_fixed_move cube m] gets the resulting cube after applying the fixed move [m]
+        to the permutation underlying the given [cube]. *)
+
     val get_identical_cubes : t -> t list
+    (** [get_identical_cubes cube] gets a list of all cubes that have the same underyling
+        permutation as [cube] but might be distinct in [t]. *)
 
     module Exposed_for_testing :
       sig

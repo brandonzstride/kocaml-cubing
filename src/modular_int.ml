@@ -4,16 +4,16 @@ open Core
 
 module type S = sig
   type t [@@deriving sexp]
+  val n : int
+  val zero : t
   val ( + ) : t -> t -> t
   val ( * ) : t -> t -> t
   val inverse : t -> t
   val equal : t -> t -> bool
-  val compare : t -> t -> int
   val of_int : int -> t
   val to_int : t -> int
-  val n : int
   val all : t list
-  val zero : t
+  val compare : t -> t -> int
 end
 
 module Make (G : sig

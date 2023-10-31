@@ -94,6 +94,7 @@ Cubes are fully represented by coordinates and are reduced by symmetry classes. 
 ---
 
 **Status updates**:
+* 31 Oct 2023 -- symmetry coordinates use memoized raw coordinates underneath for significantly faster computation of symmetries on the raw coordinate.
 * 17 Oct 2023 -- only the necessary coordinates are exposed, and they are all memoized and saved.
 * 13 Oct 2023 -- coordinates are limited to only their appropriate moves. All symmetry and memoized coordinates are tested and working (still without reflection). Only generators are memoized.
 * 12 Oct 2023 -- symmetry coordinates work but without reflection symmetry.

@@ -33,20 +33,37 @@ module T :
 type t = T.t
 
 val id : t
+(** [id] is the identity move. It does not permute or orient any cubies. *)
 
-(* Since domain is finite and behavior of moves are limited, we can compare *)
 val equal : t -> t -> bool
-val equal_without_orientation : t -> t -> bool
+(** [equal a b] is true if and only if [a] and [b] permute and orient the cubies
+    in the exact same way.
+    
+    Note: since the domain and range are finite, comparison of functions is well-defined. *)
 
-(* Compose the two moves. The left is applied first, so (f * g)(x) ~= g(f(x)) *)
-(* This isn't typical, but it's noted in the permutation wikipedia that this is sometimes done *)
+val equal_without_orientation : t -> t -> bool
+(** [equal_without_orientation a b] is true if and only if [a] and [b] permute the
+    cubies in the exact same way, but they may orient the cubies differently. *)
+
 val ( * ) : t -> t -> t
+(** [a * b] composes the moves [a] and [b], where [a] (the left operand) is applied
+    first.
+    
+    Viewed as functions, `(f * g)(x) ~= g(f(x))`.
+
+    It's not typical to compose permutations this way, but it's noted in the "permutation" Wikipedia
+    page that this is sometimes done.
+    *)
 
 module type Generator =
   sig
     type t [@@deriving enumerate, sexp, compare]
     val to_move : t -> T.t
+    (** [to_move gen] gets the move from the generator [gen]. *)
+
     val to_rank : t -> int
+    (** [to_rank gen] sends [gen] to a unique integer, where there is no other
+        generator [gen'] not equal to [gen] such that [to_rank gen = to_rank gen']. *)
   end
 
 (* These moves generate the whole cube *)
@@ -63,29 +80,62 @@ module Fixed :
     module Super :
       sig
         type t
+        (** [t] is the "super type" for all fixed moves. All other fixed moves can be
+            cast up and down to this [t]. *)
       end
 
     module type S =
       sig
         module Generator : Generator
+        (** Fixed moves are generator by some [Generator]. Fixed moves are
+            always some integer power of one generator. They are not ever
+            combinations of more than one generator. *)
+
         type t [@@deriving sexp, compare]
-        val of_gen : Generator.t -> t (* count = 1 *)
+
+        val of_gen : Generator.t -> t
+        (** [of_gen gen] gets the fixed move by [gen] to the power of 1. *)
+
         val of_generator_and_count : Generator.t -> int -> t
+        (** [of_generator_and_count gen count] gets the fixed move by [gen]
+            to the power of [count]. *)
+
         val to_generator_and_count : t -> (Generator.t * int)
-        val all : t list (* all non-identity moves *)
-        val n : int (* number of non-identity moves *)
+        (** [to_generator_and_count m] breaks the fixed move [m] down to some
+            generator [gen] and the power [count], such that [gen] to the power
+            of [count] is equal to [m]. *)
+
+        val all : t list
+        (** [all] is a list of all non-identity moves. *)
+
+        val n : int
+        (** [n] is the number of non-identity moves. *)
+
         val to_rank : t -> int (* not defined on identity moves *)
+        (** [to_rank m] sends [m] to a unique integer between 0 and [n].
+            
+            It is not defined on non-identity moves. *)
+
         val to_move : t -> T.t
+        (** [to_move m] sends [m] to a [Move.t]. *)
 
         val to_super_t : t -> Super.t
-        val of_super_t : Super.t -> t
+        (** [to_super_t m] casts [m] up to the super type [Super.t]. No info is lost in this cast. *)
 
-        (* TODO: exchange this for quickcheck *)
+        val of_super_t : Super.t -> t
+        (** [of_super_t s] casts [s] down to this type [t]. No info is lost in this cast. *)
+
         val random_list : int -> t list
+        (** [random_list k] gets a list of length [m] of random moves.
+            
+            TODO: exchange this for quickcheck. *)
       end
 
-    (* Fixed moves on the whole Rubik's cube group G. This can act as Super because G is the whole group. *)
     module G : S with type t = Super.t and type Generator.t = Generator.t
-    (* Fixed moves on the subgroup G1 *)
+    (** [module G] holds the fixed moves on the whole Rubik's cube group G. These moves are the super
+        type because G is the whole group. *)
+
     module G1 : S with type Generator.t = G1_generator.t
+    (** [module G1] is just the fixed moves on the subgroup G1: the cubes with zero orientation and
+        all UD slice edges are in the UD slice. *)
   end

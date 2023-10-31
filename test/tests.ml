@@ -355,7 +355,7 @@ let test_sym_moves_on_perm =
       ~f:(fun _ ->
         let p = Move.Fixed.G.random_list 40 |> Perm.perform_fixed_move_list Perm.identity in (* 40 moves to generate random perm *)
         let ls = Move.Fixed.G.random_list 40 in (* test move sequences of 40 moves to be applied to perm *)
-        let s = Symmetry.random () in
+        let s = Symmetry.Exposed_for_testing.random () in
         run_trial p ls s 
       )
     end
@@ -413,6 +413,9 @@ let test_sym_phase2_coord_move_sequence =
   * Symmetric cubes should have the same rank
 *)
 
+(*
+  TODO: dont' use `sanitize`. Instead use `get_identical_cubes`.   
+*)
 let test_cube_move_sequence n_trials n_moves move_list_generator (module M : Cube.S) _ =
   let test_module _ =
     let p = (* random starting permutation *)
