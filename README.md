@@ -66,18 +66,14 @@ Cubes are fully represented by coordinates and are reduced by symmetry classes. 
 
 **TODO urgent**:
 * All "Code improvement" TODOs are the most urgent because I value my code quality, and this project has no deadline.
-* Handle case when one raw coordinate is represented by more than one sym coordinate at the same time.
-  * Upon doing move when creating pruning tables, must search the equivalence class for the same raw coordinate.
+* Create pruning tables.
 
 ---
 
 **TODO eventually**:
 * Functionality:
   * Implement A*.
-  * Implement pruning tables.
-    * Must consider how one cube can be represented by two symmetry coordinates.
   * Implement repeated search for worse phase1 result and better phase2 result.
-  * Figure out why move tables can't be saved during testing.
   * Create setup executable to calculate tables.
   * Use config for table locations and setup state.
   * Reintroduce reflection symmetry with working orientations.

@@ -19,8 +19,9 @@
   Never overwrite values in the table unless they are the initial value (inf).
 
   For each cube, need to apply all symmetries and check which are an identical
-  permutation. This can be checked by converting symmetry coordinate to a raw
-  coordinate and checking for equality.
+  permutation.
+
+  Then fill in all cubes as one move further away from the goal state.
 *)
 
 module Phase1 :
