@@ -48,7 +48,7 @@ module One_dim :
             was saved using [to_file] below. *)
 
         val to_file : t -> string -> unit
-        (** [to_file tbl filepath] saves the [tbl] at the given [filepath] such that is is
+        (** [to_file tbl filepath] saves the [tbl] at the given [filepath] such that it is
             readable back into a table using [from_file] above. *)
 
         val of_list : R.t list -> t
@@ -81,7 +81,7 @@ module Two_dim :
             was saved using [to_file] below. *)
 
         val to_file : t -> string -> unit
-        (** [to_file tbl filepath] saves the [tbl] at the given [filepath] such that is is
+        (** [to_file tbl filepath] saves the [tbl] at the given [filepath] such that it is
             readable back into a table using [from_file] above. *)
 
         (* Given lists *must* be sorted by rank. This is not asserted, and it is up to the user to assert *)
