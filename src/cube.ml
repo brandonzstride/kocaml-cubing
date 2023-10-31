@@ -13,6 +13,7 @@ module type S =
     val of_perm : Perm.t -> (t, string) result 
     val to_rank : t -> int
     val perform_fixed_move : t -> Fixed_move.t -> t
+    val get_identical_cubes : t -> t list
     module Exposed_for_testing :
       sig
         val to_perm : t -> Perm.t
@@ -60,6 +61,11 @@ module Make
 
     let perform_fixed_move { raw ; sym } (m : Fixed_move.t) : t =
       { raw = Raw.perform_fixed_move raw m ; sym = Sym.perform_fixed_move sym m }
+
+    let get_identical_cubes { raw ; sym } : t list =
+      sym
+      |> Sym.get_identical_cubes
+      |> List.map ~f:(fun s -> { raw ; sym = s })
 
     module Exposed_for_testing =
       struct
@@ -112,6 +118,14 @@ module Phase2 =
 
     let perform_fixed_move { visible ; ud } (m : Fixed_move.t) : t =
       { visible = Visible.perform_fixed_move visible m ; ud = UD.perform_fixed_move ud m }
+
+    (*
+      ud is a raw coordinate and thus doesn't have any identical cubes.   
+    *)
+    let get_identical_cubes { visible ; ud } : t list =
+      visible
+      |> Visible.get_identical_cubes
+      |> List.map ~f:(fun v -> { visible = v ; ud })
 
     module Exposed_for_testing =
       struct

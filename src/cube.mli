@@ -45,6 +45,8 @@ module type S =
     val to_rank : t -> int
     (* performs a single move on the cube *)
     val perform_fixed_move : t -> Fixed_move.t -> t
+    (* gets any cubes that are identical but have a different rank *)
+    val get_identical_cubes : t -> t list
 
     module Exposed_for_testing :
       sig

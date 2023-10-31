@@ -28,8 +28,8 @@
     ```
     dune exec -- src/setup.exe
     ```
-    It takes less than four minutes for all the coordinates on my machine. Flip_UD_slice
-    takes about three and half of those.
+    It takes about two minutes and ten seconds for all the coordinates on my machine.
+    Flip_UD_slice takes about two minutes, and the rest of the time are the other coordinates.
 *)
 module P : Coordinate.Params =
   struct
@@ -37,11 +37,14 @@ module P : Coordinate.Params =
   end
 
 let () = 
-(* Compute and save all coordinates *)
+  (* Compute and save all coordinates *)
+  Printf.printf "Starting setup...\n";
+  let t0 = Caml_unix.gettimeofday () in
   let module Twist = Coordinate.Twist (P) in
   let module Flip_UD_slice = Coordinate.Flip_UD_slice (P) in
 
   let module Edge_perm = Coordinate.Edge_perm (P) in
   let module Corner_perm = Coordinate.Corner_perm (P) in
   let module UD_slice_perm = Coordinate.UD_slice_perm (P) in
+  Printf.printf "Finished setup in %fs\n" (Caml_unix.gettimeofday () -. t0);
   print_endline "done";

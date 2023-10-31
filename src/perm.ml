@@ -22,6 +22,10 @@ let perform_fixed_move_list (p : t) (ls : Move.Fixed.Super.t list) : t =
 let of_move_list (ls : Move.t list) : t =
   List.fold ls ~init:identity ~f:perform_move
 
+let random () : t =
+  Move.Fixed.G.random_list 40
+  |> perform_fixed_move_list identity
+
 let to_corners_list (p : t) : Cubie.With_orientation.Corner.t list =
   let open List.Let_syntax in
   let%map x = Cubie.Corner.all in

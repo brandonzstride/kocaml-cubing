@@ -53,6 +53,7 @@ module type Sym_S =
   sig
     include S
     val get_symmetry : t -> Symmetry.t
+    val get_identical_cubes : t -> t list
   end
 
 module type Params =
@@ -170,7 +171,7 @@ module Make_memoized_coordinate
 
     let move_table =
       Loader.load
-        ~filename:(Name.name ^ "/" ^ "move_table.sexp")
+        ~filename:(Name.name ^ "/" ^ "raw_coord_move_table.sexp")
         ~on_compute:(fun () ->
             Move_table.create (all ()) Fixed_move.Generator.all ~f:(
               fun x gen ->
@@ -220,7 +221,6 @@ module type Sym_IR =
     val get_rep : t -> Raw.t
     val get_sym : t -> Symmetry.t
     val perform_fixed_move_generator : t -> Raw.Fixed_move.Generator.t -> t
-    val perform_symmetry : t -> Symmetry.t -> t
     val all : unit -> t list (* gets all reprsentatives of eq classes *)
   end
 
@@ -288,6 +288,8 @@ module Make_sym_IR (Raw : S) : Sym_IR with module Raw = Raw =
       { rep = y.rep ; sym = Symmetry.mult y.sym x.sym }
       
     (*
+      Note: no longer needed.
+
       To perform a symmetry s, we need to consider the new symmetry
       it will take to transform to the representative.
       Currently, 
@@ -299,8 +301,8 @@ module Make_sym_IR (Raw : S) : Sym_IR with module Raw = Raw =
       So the new symmetry of this coordinate is
         S * s^-1
     *)
-    let perform_symmetry (x : t) (s : Symmetry.t) : t =
-      { x with sym = Symmetry.mult x.sym (Symmetry.inverse s) }
+    (* let perform_symmetry (x : t) (s : Symmetry.t) : t =
+      { x with sym = Symmetry.mult x.sym (Symmetry.inverse s) } *)
 
     (* very computationally expensive to get all reps *)
     let all () =
@@ -324,23 +326,30 @@ module Make_sym_IR (Raw : S) : Sym_IR with module Raw = Raw =
 
 (*
   Now I'll use the Sym_IR to create a full-blown symmetry coordinate.
-  This will be expensive to compute because it needs to call Sym_base.all.
+  This will be expensive to compute because it needs to call Sym_IR.all.
 *)
 module Make_symmetry_coordinate
     (Name : sig val name : string end)
-    (S : Sym_IR)
+    (Raw : S)
     (P : Params)
-    : Sym_S with module Fixed_move = S.Raw.Fixed_move =
+    : Sym_S with module Fixed_move = Raw.Fixed_move =
   struct
 
-    module Fixed_move = S.Raw.Fixed_move
+    (*
+      Assume we always want to memoize Raw.
+      For now, name this poorly by just overwriting Raw.
+    *)
+    module Raw = Make_memoized_coordinate (Name) (Raw) (P)
+    module IR = Make_sym_IR (Raw)
+
+    module Fixed_move = Raw.Fixed_move
     
     module Raw_table =
       Lookup_table.One_dim.Make
         (struct type t = int let to_rank = Fn.id end)
-        (S.Raw)
+        (Raw)
     
-    module Raw_map = Map.Make (S.Raw)
+    module Raw_map = Map.Make (Raw)
 
     module Loader = Load_from_params (P)
 
@@ -351,9 +360,9 @@ module Make_symmetry_coordinate
       Loader.load
         ~filename:(Name.name ^ "/" ^ "class_to_rep_table.sexp")
         ~on_compute:(fun () ->
-            S.all ()
-            |> List.map ~f:S.get_rep
-            |> List.sort ~compare:S.Raw.compare
+            IR.all ()
+            |> List.map ~f:IR.get_rep
+            |> List.sort ~compare:Raw.compare
             |> Raw_table.of_list
           )
         ~to_file:Raw_table.to_file
@@ -363,6 +372,10 @@ module Make_symmetry_coordinate
       Externally, it should appear as if there are only as many symmetry
       coordinates as there are equivalence classes.
       Internally, this will be larger by a multiple of Sym.n
+
+      A symmetry coordinate is `s*c + i` where c is the rank of the equivalence
+      class, and i is the rank of the symmetry that converts the cube to its
+      representative, and s is the number of symmetries.
     *)
     module I =
       struct
@@ -400,17 +413,17 @@ module Make_symmetry_coordinate
     (* let is_rep x = x mod Symmetry.n = 0 *)
     let get_rep x = x |> to_rank |> of_rank
 
-    let get_class_index x = Map.find_exn rep_to_class_map (S.get_rep x)
+    let get_class_index x = Map.find_exn rep_to_class_map (IR.get_rep x)
 
-    let get_rep_raw_coord (x : t) : S.Raw.t =
+    let get_rep_raw_coord (x : t) : Raw.t =
       Raw_table.lookup class_to_rep_table (to_rank x)
 
     let get_symmetry (x : t) : Symmetry.t =
       x mod Symmetry.n |> Symmetry.of_rank
 
-    (* Gets the t from the intermediate representation--call that the "base" of this module *)
-    let of_base (x : S.t) : t =
-      let sym_rank = Symmetry.to_rank (S.get_sym x) in
+    (* Gets the t from the intermediate representation *)
+    let of_ir (x : IR.t) : t =
+      let sym_rank = Symmetry.to_rank (IR.get_sym x) in
       Symmetry.n * get_class_index x + sym_rank
 
     (*
@@ -438,19 +451,19 @@ module Make_symmetry_coordinate
     *)
     module Move_table = Lookup_table.Two_dim.Make (I) (Fixed_move.Generator) (I)
 
-    (* This would just be generator, which sym_base can handle just fine
+    (* This would just be generator, which sym_ir can handle just fine
        if converted to a fixed move  *)
     let move_table =
       Loader.load
-        ~filename:(Name.name ^ "/" ^ "move_table.sexp")
+        ~filename:(Name.name ^ "/" ^ "sym_coord_move_table.sexp")
         ~on_compute:(fun () ->
             Move_table.create (all ()) Fixed_move.Generator.all ~f:(
               fun x gen ->
                 x
                 |> get_rep_raw_coord
-                |> S.of_raw (* Sym_IR will help us operate on a raw representative of the class *)
-                |> Fn.flip S.perform_fixed_move_generator gen
-                |> of_base (* convert back to full symmetry coordinate from Sym_IR *)
+                |> IR.of_raw (* Sym_IR will help us operate on a raw representative of the class *)
+                |> Fn.flip IR.perform_fixed_move_generator gen
+                |> of_ir (* convert back to full symmetry coordinate from Sym_IR *)
             )
           )
         ~to_file:Move_table.to_file
@@ -494,24 +507,45 @@ module Make_symmetry_coordinate
       x <=> P   
       R = S * P * S^-1
       P = S^-1 * R * S
+
+      We want to get P. We know how to get R
     *)
-    let to_perm (x : t) : Perm.t =
-      let s = 
-        x
-        |> get_symmetry
-        |> Symmetry.inverse
-      in
+    let get_raw (x : t) : Raw.t =
       x
-      |> get_rep_raw_coord
-      |> S.Raw.to_perm
-      |> Symmetry.on_perm s
+      |> get_symmetry
+      |> Symmetry.inverse
+      |> Raw.perform_symmetry (get_rep_raw_coord x)
+
+    let to_perm (x : t) : Perm.t =
+      x
+      |> get_raw
+      |> Raw.to_perm
 
     let of_perm (p : Perm.t) : t =
       p
-      |> S.Raw.of_perm
-      |> S.of_raw
-      |> of_base
+      |> Raw.of_perm
+      |> IR.of_raw
+      |> of_ir
 
+    (*
+      Method: apply all symmetries, then convert each to a raw coordinate, and
+        then return all that have the same raw coordinate as the original.   
+
+      Note that the underlying raw coordinate is not memoized, so this could be slow.
+
+      It would be faster to send to a permutation once, then perform symmetries, but I'm
+      looking for conciseness here. 
+    *)
+    let get_identical_cubes (x : t) : t list =
+      let raw = get_raw x in
+      List.filter_map
+        Symmetry.all
+        ~f:(fun s ->
+          let raw' = perform_symmetry x s |> get_raw in
+          match Raw.compare raw raw' with
+          | 0 -> Some (IR.of_raw raw' |> of_ir)
+          | _ -> None
+        )
   end
 
 (*
@@ -816,8 +850,6 @@ module Join
 
 module Flip_UD_slice_raw = Join (Move.Fixed.G) (Flip_raw) (UD_slice_raw)
 
-module Flip_UD_slice_sym_IR = Make_sym_IR (Flip_UD_slice_raw)
-
 (*
   -------------------
   PHASE 2 COORDINATES   
@@ -931,8 +963,6 @@ module Corner_perm_raw = Make_perm_coord_raw (
   end
 )
 
-module Corner_perm_sym_IR = Make_sym_IR (Corner_perm_raw)
-
 module UD_slice_perm_raw = Make_perm_coord_raw (
   struct
     let all =
@@ -941,6 +971,22 @@ module UD_slice_perm_raw = Make_perm_coord_raw (
   end
 ) 
 
+module Exposed_for_testing =
+  struct
+    module type Phase1_raw_S = S with module Fixed_move = Move.Fixed.G
+    module type Phase2_raw_S = S with module Fixed_move = Move.Fixed.G1
+
+    (* Phase 1 *)
+    module Twist         = Twist_raw
+    module Flip          = Flip_raw
+    module UD_slice      = UD_slice_raw
+    module Flip_UD_slice = Flip_UD_slice_raw
+
+    (* Phase 2 *)
+    module Edge_perm     = Edge_perm_raw
+    module Corner_perm   = Corner_perm_raw
+    module UD_slice_perm = UD_slice_perm_raw
+  end
 
 (*
   -------------------------------- 
@@ -952,13 +998,14 @@ module UD_slice_perm_raw = Make_perm_coord_raw (
   The user only needs to specify with some Params how the memoization is found/computed.
 *)
 
+
 (* Phase 1 *)
 module Twist         : Phase1_S     = Make_memoized_coordinate (struct let name = "twist" end) (Twist_raw)
-module Flip_UD_slice : Phase1_sym_S = Make_symmetry_coordinate (struct let name = "flip_ud_slice" end) (Flip_UD_slice_sym_IR)
+module Flip_UD_slice : Phase1_sym_S = Make_symmetry_coordinate (struct let name = "flip_ud_slice" end) (Flip_UD_slice_raw)
 
 (* Phase 2 *)
 module Edge_perm     : Phase2_S     = Make_memoized_coordinate (struct let name = "edge_perm" end) (Edge_perm_raw)
-module Corner_perm   : Phase2_sym_S = Make_symmetry_coordinate (struct let name = "corner_perm" end) (Corner_perm_sym_IR)
+module Corner_perm   : Phase2_sym_S = Make_symmetry_coordinate (struct let name = "corner_perm" end) (Corner_perm_raw)
 module UD_slice_perm : Phase2_S     = Make_memoized_coordinate (struct let name = "ud_slice_perm" end) (UD_slice_perm_raw)
 
 (*
@@ -989,20 +1036,3 @@ module Using_config () =
     module UD_slice_perm = UD_slice_perm (P)
   end
 
-
-module Exposed_for_testing =
-  struct
-    module type Phase1_raw_S = S with module Fixed_move = Move.Fixed.G
-    module type Phase2_raw_S = S with module Fixed_move = Move.Fixed.G1
-
-    (* Phase 1 *)
-    module Twist         = Twist_raw
-    module Flip          = Flip_raw
-    module UD_slice      = UD_slice_raw
-    module Flip_UD_slice = Flip_UD_slice_raw
-
-    (* Phase 2 *)
-    module Edge_perm     = Edge_perm_raw
-    module Corner_perm   = Corner_perm_raw
-    module UD_slice_perm = UD_slice_perm_raw
-  end

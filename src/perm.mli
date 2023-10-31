@@ -23,6 +23,7 @@ type t = Move.t
 
 val identity : t
 val is_identity : t -> bool
+val random : unit -> t
 val perform_move : t -> Move.t -> t (* Move is performed after permutation *) 
 val perform_fixed_move : t -> Move.Fixed.Super.t -> t (* Fixed move is performed after the permutation *)
 val perform_fixed_move_list : t -> Move.Fixed.Super.t list -> t (* Performs moves in the order given *)

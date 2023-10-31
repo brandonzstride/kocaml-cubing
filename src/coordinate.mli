@@ -108,6 +108,8 @@ module type Sym_S =
     include S
     (* Get the symmetry that converts it to the representative of the symmetry class *)
     val get_symmetry : t -> Symmetry.t
+    (* Gets cubes that are identical but have different symmetry coordinates *)
+    val get_identical_cubes : t -> t list
   end
 
 module type Params =

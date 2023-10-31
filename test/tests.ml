@@ -28,6 +28,7 @@ open OUnit2
   my mind on this later, and it will be a simple change.
 *)
 
+(* These are raw coordinates -- no memoization or symmetry classes *)
 module C = Coordinate.Exposed_for_testing
 
 module Ref_module =
