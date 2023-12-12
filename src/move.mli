@@ -15,14 +15,19 @@
     replaced by the cubie that was in the UFL position, and it will gain
     orientation 1.
 
-    There are two submodules holding the fixed moves. These are All_fixed_move,
-    which is all the moves and their multiples that generate the Rubik's cube group,
-    and G1_fixed_move, which is all the moves and their multiples that generate the
-    G1 subgroup of the Rubik's cube group. These are split so that 
+    There are submodules holding the fixed moves. A fixed move has a signature
+    Fixed.S, and the current modules satisfying these signatures are Fixed.G and
+    Fixed.G1.
+      * Fixed.G are the fixed moves on the entire cube (the group G). These are
+        "Super" type of all other fixed moves because any other fixed move is injective
+        with Fixed.G 
+      * Fixed.G1 are the fixed moves on the G1 subgroup -- all moves that preserve
+        cubie orientation and preserve the UD plane. Every move is injective with a move
+        in Fixed.G.
   
   Dependencies:
     Cubie -- moves directly permute the cubies
-    Modular_int -- powers of up to four faceturns make up a move
+    Modular_int -- powers of up to four faceturns make up a move, so we use Z4.
 *)
 
 module T :
