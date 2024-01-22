@@ -78,7 +78,6 @@ Cubes are fully represented by coordinates and are reduced by symmetry classes. 
   * Use config for table locations and setup state.
   * Reintroduce reflection symmetry with working orientations.
 * Code improvements:
-  * Use `Seq` instead of `List` to iterate over all coordinates, and make appropriate changes to `Lookup_table`.
   * Use `quickcheck` instead of my random selections.
   * See about passing a `Move.Fixed_move.S` around coordinates much less. It's excessive, but I haven't yet found a way around it.
   * Consider `drom` for project structure?
@@ -98,3 +97,62 @@ Cubes are fully represented by coordinates and are reduced by symmetry classes. 
 * 06 Oct 2023 -- all raw coordinates work completely under move sequences starting from random permutations. However, the reflection symmetry is broken.
 * 26 Sep 2023 -- orientation coordinates fail under moves. I may refactor moves to not consider initial orientation, but I don't yet see how this solves the issue.
 * 09 Sep 2023 -- no consistent updates on status before 26 Sep 2023. First commit 09 Sep 2023.
+
+
+## Proposal
+
+This section is to propose the continuation of this project as an independent study project for Spring 2024. Please review the above to understand the background of the project. 
+
+**Goal:** The goal is to have a working Rubik's cube solver following Kociemba's Two-phase algorithm.
+
+**Purpose:** The purpose is to learn to design efficient systems in OCaml by solving a computationally hard problem.
+
+### Justification ###
+
+Here are the reasons this project is sufficient for independent study:
+
+
+**Complexity**
+
+The problem is algorithmically and mathematically complex. It requires me to create a well-designed system, practicing good software development. It is overall an exercise in creating a working, complex project.
+
+**Scale**
+
+While I've finish some of the logic already, there is still quite a ways to go, and there is virtually no end to efficiency improvements I can make. This project will certainly not be too small for the semester.
+
+Some efficiency improvements include
+* Use bytes to represent "distance to goal" with only an int mod 3, thus compressing storage used "per cube" from 8 bytes to a few bits
+* Use on-disk data storage and compare to in-memory storage of pruning tables
+* Parallelize creation of coordinates
+* Add more layers to the abstraction to use literal ints as a final layer instead of dynamically allocated data (e.g. in Cube)
+
+Also, I have never made a front end, and this might be a good chance to learn how to do that.
+
+**Novelty**
+
+Nobody yet appears to have implemented this algorithm in OCaml.
+
+I've searched GitHub thoroughly for some mention of "Kociembia" and the OCaml lanuage, and there is one project that suggests the idea but never follows through.
+
+**"Open-source" contributions**
+
+The algorithm is not well documented (in my opinion), so it provides an opportunity to contribute to documentation. It also is an opportunity to learn how to document a large project, from tutorial to explanation to reference, etc.
+
+**Advanced language features**
+
+This project presents an opportunity to learn some of OCaml's more complex language features that aren't tackled in any class here.
+1. I can use parallelism in several places:
+    * Search graph for better solution in parallel
+    * Do precomputations in parallel
+    * Query for heuristic in pruning table in parallel
+2. I can learn to write a preprocessing extension (ppx)
+    * Maybe to handle the many invariant tests by inlining quickcheck tests
+    * Maybe to make the excessive functors and/or nested modules nicer
+
+### Implementation plan ###
+
+Here is an initial proposal of steps I'd like to complete, with no stretch goals (yet):
+1. Get a working first pass solver (est. end of Feb)
+2. Iterate for more optimal solution
+3. Use on-disk storage and compare performance
+4. Improve documentation/explanation of the algorithm
