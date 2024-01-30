@@ -78,6 +78,7 @@ Cubes are fully represented by coordinates and are reduced by symmetry classes. 
   * Use config for table locations and setup state.
   * Reintroduce reflection symmetry with working orientations.
 * Code improvements:
+  * Use first-class modules in place of functors when I only need to pass in some value as the argument.
   * Use `quickcheck` instead of my random selections.
   * See about passing a `Move.Fixed_move.S` around coordinates much less. It's excessive, but I haven't yet found a way around it.
   * Consider `drom` for project structure?
