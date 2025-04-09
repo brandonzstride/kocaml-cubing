@@ -258,7 +258,7 @@ module P : Coordinate.Params =
     (* let status = `Compute *) (* do not save *)
     (* back out of test, default, _build, then into src ... *)
     (* It takes about half a second to load all of the coordinates into memory on my machine *)
-    let status = `Is_saved_at_directory "../../../src/coordinates/" (* requiries that `dune exec -- src/setupml` has been run *)
+    let status = `Is_saved_at_directory "/home/bstride/kocaml-cubing/src/coordinates/" (* requiries that `dune exec -- src/setup.ml` has been run *)
   end
 
 module Twist = Coordinate.Twist (P)
@@ -506,5 +506,5 @@ let series = "series" >::: [
   cube_tests;
 ]
 
-let () =
+let[@landmarks] () =
   run_test_tt_main series

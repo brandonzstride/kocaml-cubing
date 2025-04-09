@@ -17,6 +17,10 @@
 
   Dependencies:
     Move -- a permutation is exactly a move on the identity cube
+
+
+  TODO: it's probably a good idea to make sure this is distinct from a move, but
+    I'm not sure how often we use the equivalance.
 *)
 
 type t = Move.t

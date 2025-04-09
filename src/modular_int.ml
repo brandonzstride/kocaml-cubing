@@ -16,6 +16,7 @@ module type S = sig
   val compare : t -> t -> int
 end
 
+(* I may consider letting n be a peano integer type, and then `Make` just fixes it to work with that `n`, and we have a general module that has a parametrized type by the peano int. *)
 module Make (G : sig
     val n : int
   end) : S = struct

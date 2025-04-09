@@ -2,6 +2,9 @@
   The lookup tables use arrays for quick access, so they use mutation,
   but this is all behind the scenes, so users of the lookup table can
   be purely functional.
+
+  TODO: I think we may want to make this arbitrary dimension by providing
+    a list of keys as first class modules. It can all be done dynamically.
 *)
 
 

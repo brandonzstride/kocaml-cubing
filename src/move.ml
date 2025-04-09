@@ -1,5 +1,11 @@
 open Core
 
+(* And this is a better definition for a move, supposing we have GADT cubie. I would just make a Separate module for commonly separating into corners and edgs *)
+(* module TT = struct
+  type t = { move : 'a. 'a Cubie.t -> 'a Cubie.With_orientation.t }
+  (* Now edges map to edges, and corners to corners *)
+end *)
+
 module T =
   struct
     type t = Cubie.t -> Cubie.With_orientation.t

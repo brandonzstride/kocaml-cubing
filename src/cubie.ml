@@ -44,6 +44,20 @@ let pp = function
 let edge_exn = function Edge e -> e | _ -> failwith "Expected edge in `edge_exn`, but got corner"
 let corner_exn = function Corner c -> c | _ -> failwith "Expected corner in `corner_exn`, but got edge"
 
+(* This is a much better way to make the With_orientation module *)
+(* module WO = struct
+  type _ t =
+    | Corner : (Corner.t, Modular_int.Z3.t) r -> Corner.t t
+    | Edge : (Edge.t, Modular_int.Z2.t) r -> Edge.t t
+
+  and ('c, 'o) r = { c : 'c ; o : 'o }
+
+  let to_cubie : type a. a t -> a = function
+    | Corner { c; _ } -> c
+    | Edge { c; _ } -> c
+
+  ...
+end *)
 
 module With_orientation =
   struct

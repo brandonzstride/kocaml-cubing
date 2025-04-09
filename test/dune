@@ -1,4 +1,4 @@
-(test
+(executable
  (name tests)
  (libraries 
   core
@@ -10,4 +10,4 @@
   cube
   core_unix)
   (preprocess
-  (pps ppx_jane)))
+  (pps ppx_jane landmarks-ppx --auto)))

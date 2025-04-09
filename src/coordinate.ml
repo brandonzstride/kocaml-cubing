@@ -1023,7 +1023,7 @@ module Using_config () =
     module P : Params =
       struct
         (* Hard code the params for now. Eventually want to read from config files *)
-        let status = `Is_saved_at_directory "/mnt/c/Users/brand/Documents/kocaml-cubing/src/coordinates/"
+        let status = `Is_saved_at_directory "/home/bstride/kocaml-cubing/src/coordinates/"
       end
 
     (* Phase 1 *)
